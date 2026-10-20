@@ -8,6 +8,9 @@ from app.agents.classifier import ClassifierAgent
 from app.config import get_settings
 from app.integrations.github_client import GitHubClient
 from app.reports.generator import generate_report
+from app.integrations.email_client import send_critical_finding_email
+from app.integrations.slack_client import send_review_notification
+from app.integrations.ticket_provider import get_ticket_provider, TicketRequest
 
 log = structlog.get_logger(__name__)
 
@@ -128,6 +131,21 @@ class OrchestratorAgent(BaseAgent):
         except Exception as exc:
             self.log.error("post_review_failed", error=str(exc))
 
+        # 7. Notifications (best-effort — never fail the pipeline)
+        pr_url = f"https://github.com/{repo_full_name}/pull/{pr_number}"
+        self._send_notifications(
+            repo=repo_full_name,
+            pr_number=pr_number,
+            pr_title=pr_title,
+            pr_url=pr_url,
+            author_login=author_login,
+            author_email=author_email,
+            decision=decision,
+            critical=critical,
+            suggestive=suggestive,
+            optimisation=optimisation,
+        )
+
         result = {
             "repo": repo_full_name,
             "pr_number": pr_number,
@@ -207,6 +225,70 @@ class OrchestratorAgent(BaseAgent):
             lines.append("")
         lines.append("<details><summary>Full Report</summary>\n\n" + report_md + "\n</details>")
         return "\n".join(lines)
+
+    def _send_notifications(
+        self,
+        *,
+        repo: str,
+        pr_number: int,
+        pr_title: str,
+        pr_url: str,
+        author_login: str,
+        author_email: str | None,
+        decision: str,
+        critical: list,
+        suggestive: list,
+        optimisation: list,
+    ) -> None:
+        # Email — only if critical findings and email is known
+        if critical and author_email:
+            summary = "\n".join(f"• [{f.file_path}] {f.title}" for f in critical[:10])
+            send_critical_finding_email(
+                to_email=author_email,
+                to_name=author_login,
+                repo=repo,
+                pr_number=pr_number,
+                pr_title=pr_title,
+                pr_url=pr_url,
+                critical_count=len(critical),
+                findings_summary=summary,
+            )
+
+        # Slack — always post summary
+        send_review_notification(
+            repo=repo,
+            pr_number=pr_number,
+            pr_title=pr_title,
+            pr_url=pr_url,
+            author=author_login,
+            decision=decision,
+            critical=len(critical),
+            suggestive=len(suggestive),
+            optimisation=len(optimisation),
+        )
+
+        # Ticket — create for critical findings
+        if critical:
+            try:
+                provider = get_ticket_provider()
+                if provider:
+                    findings_text = "\n".join(
+                        f"- [{f.severity.upper()}] {f.file_path}: {f.title}" for f in critical
+                    )
+                    provider.create_ticket(TicketRequest(
+                        title=f"[MACRV] Critical findings in PR #{pr_number}: {pr_title}",
+                        description=(
+                            f"PR: {pr_url}\nRepo: {repo}\nAuthor: @{author_login}\n\n"
+                            f"Critical Findings:\n{findings_text}"
+                        ),
+                        severity="critical",
+                        repo=repo,
+                        pr_number=pr_number,
+                        file_path="multiple",
+                        labels=["code-review", "critical", "automated"],
+                    ))
+            except Exception as exc:
+                self.log.error("ticket_creation_failed", error=str(exc))
 
     @staticmethod
     def _error_result(repo: str, pr_number: int, head_sha: str, error: str) -> dict:
