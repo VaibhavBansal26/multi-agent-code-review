@@ -26,6 +26,8 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e ".[dev]" || pip install -r requirements.txt pytest pytest-asyncio pytest-cov respx
+      - name: Ensure async extras
+        run: pip install "sqlalchemy[asyncio]" greenlet
 
       - name: Lint (ruff)
         run: ruff check app/ tests/ || true
