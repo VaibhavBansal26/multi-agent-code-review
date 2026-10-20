@@ -1,5 +1,7 @@
 """File review worker agent — reviews a single file diff."""
 from __future__ import annotations
+import json
+import re
 from dataclasses import dataclass, field
 from app.agents.base import BaseAgent
 
@@ -27,7 +29,6 @@ class FileReviewAgent(BaseAgent):
     """
     Runs on claude-sonnet-4-6.
     Reviews a single file diff and returns structured findings.
-    Fully implemented in Phase 2.
     """
 
     SYSTEM_PROMPT = """You are an expert code reviewer. Your job is to review a file diff
@@ -49,5 +50,59 @@ Return ONLY a JSON array of findings. Empty array if no issues found.
 Do not add commentary outside the JSON."""
 
     def review(self, *, file_path: str, diff: str, context: str = "") -> FileReviewResult:
-        """Review a single file diff. Phase 1 stub — implemented in Phase 2."""
-        return FileReviewResult(file_path=file_path, findings=[])
+        """Review a single file diff using LLM analysis."""
+        if not diff.strip():
+            return FileReviewResult(file_path=file_path, findings=[])
+
+        user_msg = f"File: {file_path}\n\n"
+        if context:
+            user_msg += f"Context:\n{context}\n\n"
+        user_msg += f"Diff:\n```\n{diff}\n```"
+
+        try:
+            response = self._call(
+                messages=[{"role": "user", "content": user_msg}],
+                system=self.SYSTEM_PROMPT,
+                max_tokens=4096,
+            )
+            raw = response.content[0].text.strip()
+            findings_data = self._parse_json_array(raw)
+            findings = []
+            for item in findings_data:
+                if not isinstance(item, dict):
+                    continue
+                findings.append(FileFinding(
+                    title=item.get("title", "Unnamed finding"),
+                    body=item.get("body", ""),
+                    file_path=item.get("file_path", file_path),
+                    line_start=item.get("line_start"),
+                    line_end=item.get("line_end"),
+                    suggestion=item.get("suggestion"),
+                    severity=item.get("severity", "suggestive"),
+                    source="llm",
+                ))
+            self.log.info("file_reviewed", file=file_path, findings=len(findings))
+            return FileReviewResult(file_path=file_path, findings=findings)
+        except Exception as exc:
+            self.log.error("file_review_error", file=file_path, error=str(exc))
+            return FileReviewResult(file_path=file_path, findings=[], error=str(exc))
+
+    @staticmethod
+    def _parse_json_array(text: str) -> list:
+        """Extract a JSON array from LLM response, tolerating markdown fences."""
+        # Strip markdown code fences
+        text = re.sub(r"^```[a-zA-Z]*\n?", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\n?```$", "", text, flags=re.MULTILINE)
+        text = text.strip()
+        try:
+            result = json.loads(text)
+            return result if isinstance(result, list) else []
+        except json.JSONDecodeError:
+            # Try to find a JSON array in the text
+            match = re.search(r"\[.*\]", text, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group())
+                except json.JSONDecodeError:
+                    pass
+        return []
