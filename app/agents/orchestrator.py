@@ -109,7 +109,8 @@ class OrchestratorAgent(BaseAgent):
             pr_number=pr_number,
             pr_title=pr_title,
             head_sha=head_sha,
-            author_login=author_login,
+            author=author_login,
+            decision=decision,
             findings=all_findings,
         )
 

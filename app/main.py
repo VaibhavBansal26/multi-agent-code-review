@@ -1,7 +1,7 @@
 """FastAPI application entry point."""
 import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, status
+from fastapi import FastAPI, HTTPException, Path, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
@@ -38,3 +38,45 @@ async def health() -> JSONResponse:
 @app.get("/", include_in_schema=False)
 async def root() -> JSONResponse:
     return JSONResponse({"service": "macrv", "docs": "/docs"})
+
+
+@app.get("/reviews/{task_id}/progress", tags=["reviews"])
+async def review_progress(
+    task_id: str = Path(..., description="Celery task ID returned by the webhook"),
+) -> JSONResponse:
+    """Return the current progress/status of a PR review task."""
+    from app.queue.celery_app import celery_app as _celery
+    result = _celery.AsyncResult(task_id)
+    state = result.state  # PENDING | STARTED | SUCCESS | FAILURE | RETRY
+
+    if state == "PENDING":
+        return JSONResponse({"task_id": task_id, "status": "pending", "progress_pct": 0})
+
+    if state == "FAILURE":
+        return JSONResponse(
+            {"task_id": task_id, "status": "failed", "error": str(result.info)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    if state == "SUCCESS":
+        info = result.result or {}
+        return JSONResponse({
+            "task_id": task_id,
+            "status": "completed",
+            "progress_pct": 100,
+            "decision": info.get("decision"),
+            "total_findings": info.get("total_findings", 0),
+            "critical": info.get("critical", 0),
+            "suggestive": info.get("suggestive", 0),
+            "optimisation": info.get("optimisation", 0),
+        })
+
+    # STARTED or RETRY — task stores progress in meta via update_state
+    meta = result.info or {}
+    return JSONResponse({
+        "task_id": task_id,
+        "status": "in_progress",
+        "progress_pct": meta.get("progress_pct", 0),
+        "reviewed": meta.get("reviewed", 0),
+        "total": meta.get("total", 0),
+    })

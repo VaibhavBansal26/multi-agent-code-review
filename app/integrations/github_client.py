@@ -52,7 +52,7 @@ class GitHubClient:
         with httpx.Client(headers=self.headers) as client:
             resp = client.post(url, json=payload, timeout=30)
             resp.raise_for_status()
-            log.info("review_posted", repo=repo, pr=pr_number, event=event)
+            log.info("review_posted", repo=repo, pr=pr_number, review_event=event)
             return resp.json()
 
     def add_pr_comment(self, repo: str, pr_number: int, body: str) -> dict:
