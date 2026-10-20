@@ -182,10 +182,10 @@ def deep_security_scan(state: ReviewState) -> dict:
         scanner = SecurityScannerAgent()
         patches = {f.get("filename", ""): f.get("patch", "") for f in critical_file_infos}
         scan_result = scanner.scan(
-            repo=state["repo"],
+            repo_full_name=state["repo"],
             pr_number=state["pr_number"],
             head_sha=state["head_sha"],
-            files=critical_file_infos,
+            files=[f.get("filename", "") for f in critical_file_infos],
             patches=patches,
         )
         new_findings = scan_result.get("findings", [])
@@ -229,7 +229,23 @@ def post_review(state: ReviewState) -> dict:
             comments=inline_comments or None,
         )
     except Exception as exc:
-        log.error("graph_post_review_failed", error=str(exc))
+        # GitHub rejects REQUEST_CHANGES when the reviewer is the PR author (422).
+        # Fall back to COMMENT so the findings summary still posts.
+        if "422" in str(exc) and decision == "REQUEST_CHANGES":
+            log.warning("graph_post_review_fallback", reason="author_self_review_not_allowed")
+            try:
+                gh.create_review(
+                    repo=state["repo"],
+                    pr_number=state["pr_number"],
+                    commit_id=state["head_sha"],
+                    body=_build_review_body(critical, suggestive, optimisation, report_md),
+                    event="COMMENT",
+                    comments=None,
+                )
+            except Exception as exc2:
+                log.error("graph_post_review_failed", error=str(exc2))
+        else:
+            log.error("graph_post_review_failed", error=str(exc))
 
     log.info("graph_review_posted", decision=decision, total=len(classified))
     return {"report_md": report_md, "report_json": report_json, "status": "completed"}
