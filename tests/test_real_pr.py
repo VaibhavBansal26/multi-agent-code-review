@@ -54,7 +54,7 @@ def gh_get(token: str, path: str, **kwargs) -> dict:
 def run(cmd: str, cwd: str | None = None, check: bool = True) -> subprocess.CompletedProcess:
     """Run a shell command, printing it for visibility."""
     print(f"  $ {cmd}")
-    result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
+    result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)  # noqa: S602
     if result.stdout.strip():
         print(f"    {result.stdout.strip()}")
     if result.returncode != 0:

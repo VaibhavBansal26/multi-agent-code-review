@@ -6,11 +6,12 @@ from pathlib import Path
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import Integer as Integer_, func, select
+from sqlalchemy import Integer as Integer_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models import Finding, PRReview, ReviewDecision, ReviewStatus, Severity
+from app.db.models import Finding, PRReview, ReviewDecision, ReviewStatus, Severity  # noqa: F401
 from app.db.session import get_db
 
 log = structlog.get_logger(__name__)
@@ -99,8 +100,8 @@ async def list_reviews(
     if status:
         try:
             q = q.where(PRReview.status == ReviewStatus(status))
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}") from exc
     if repo:
         q = q.where(PRReview.repo_full_name == repo)
     q = q.limit(limit).offset(offset)
@@ -236,8 +237,8 @@ async def list_findings(
     if severity:
         try:
             q = q.where(Finding.severity == Severity(severity))
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}") from exc
     if repo:
         q = q.where(PRReview.repo_full_name == repo)
     q = q.limit(limit)
