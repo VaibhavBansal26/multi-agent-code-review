@@ -1,4 +1,5 @@
 import json
+
 import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -47,7 +48,7 @@ async def _handle_pull_request(payload: dict, delivery_id: str) -> JSONResponse:
         pr_event = PullRequestEvent(**payload)
     except Exception as exc:
         log.error("pr_event_parse_error", error=str(exc))
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     if not pr_event.should_review():
         log.info("pr_event_skipped", action=pr_event.action, pr=pr_event.number)

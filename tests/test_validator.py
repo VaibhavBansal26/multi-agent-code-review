@@ -1,9 +1,10 @@
 """Tests for HMAC webhook signature validation."""
 import hashlib
 import hmac
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import HTTPException
-from unittest.mock import AsyncMock, MagicMock
 
 
 def _make_sig(body: bytes, secret: str) -> str:

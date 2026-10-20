@@ -1,7 +1,7 @@
 """Tests for Phase 4 SecurityScannerAgent."""
 import json
-import pytest
 from unittest.mock import MagicMock, patch
+
 from app.agents.security_scanner import SecurityScannerAgent
 
 
@@ -46,7 +46,8 @@ class TestSecurityScannerAgent:
         assert result["status"] == "completed"
 
     def test_secret_scan_detects_api_key(self):
-        import tempfile, os
+        import os
+        import tempfile
         agent = _make_scanner()
         with tempfile.TemporaryDirectory() as tmpdir:
             fpath = os.path.join(tmpdir, "config.py")
@@ -58,7 +59,8 @@ class TestSecurityScannerAgent:
         assert any(f.source == "secret_scan" for f in findings)
 
     def test_secret_scan_detects_private_key(self):
-        import tempfile, os
+        import os
+        import tempfile
         agent = _make_scanner()
         with tempfile.TemporaryDirectory() as tmpdir:
             fpath = os.path.join(tmpdir, "key.pem")
@@ -68,7 +70,8 @@ class TestSecurityScannerAgent:
         assert any("Private key" in f.title for f in findings)
 
     def test_secret_scan_clean_file_returns_empty(self):
-        import tempfile, os
+        import os
+        import tempfile
         agent = _make_scanner()
         with tempfile.TemporaryDirectory() as tmpdir:
             fpath = os.path.join(tmpdir, "clean.py")
@@ -157,7 +160,9 @@ class TestSecurityScannerAgent:
         agent = _make_scanner()
         # Two findings with same title+file_path
         from app.agents.file_reviewer import FileFinding
-        dup = FileFinding(title="SQL injection", body="b", file_path="a.py", severity="critical", source="semgrep")
+        dup = FileFinding(
+            title="SQL injection", body="b", file_path="a.py", severity="critical", source="semgrep"
+        )
         agent._scan_patches = MagicMock(return_value=[dup, dup])
         agent._llm_security_review = MagicMock(return_value=[dup])
         result = agent.scan(
@@ -172,7 +177,9 @@ class TestSecurityScannerAgent:
     def test_scan_summary_counts_critical(self):
         agent = _make_scanner()
         from app.agents.file_reviewer import FileFinding
-        critical = FileFinding(title="Injection", body="b", file_path="a.py", severity="critical", source="semgrep")
+        critical = FileFinding(
+            title="Injection", body="b", file_path="a.py", severity="critical", source="semgrep"
+        )
         info_finding = FileFinding(title="Style", body="b2", file_path="b.py", severity="optimisation", source="bandit")
         agent._scan_patches = MagicMock(return_value=[critical, info_finding])
         agent._llm_security_review = MagicMock(return_value=[])

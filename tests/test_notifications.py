@@ -1,9 +1,8 @@
 """Tests for Phase 5: email, Slack, and ticket provider notifications."""
-import pytest
-import respx
-import httpx
 from unittest.mock import MagicMock, patch
 
+import httpx
+import respx
 
 # ─── Email ────────────────────────────────────────────────────────────────────
 
@@ -26,14 +25,15 @@ class TestEmailClient:
 
     def test_sendgrid_send_called(self):
         import sys
-        from unittest.mock import MagicMock
         mock_sendgrid_module = MagicMock()
         mock_sg_client = MagicMock()
         mock_sendgrid_module.SendGridAPIClient.return_value = mock_sg_client
         mock_sg_client.send.return_value = MagicMock(status_code=202)
         mock_mail_module = MagicMock()
-        with patch.dict(sys.modules, {"sendgrid": mock_sendgrid_module, "sendgrid.helpers.mail": mock_mail_module}):
+        mocked = {"sendgrid": mock_sendgrid_module, "sendgrid.helpers.mail": mock_mail_module}
+        with patch.dict(sys.modules, mocked):
             from importlib import reload
+
             import app.integrations.email_client as ec
             reload(ec)
             with patch.object(ec, "get_settings") as mock_s:

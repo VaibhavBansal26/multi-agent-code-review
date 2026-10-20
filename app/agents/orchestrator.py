@@ -1,17 +1,24 @@
 """Orchestrator agent — plans and drives the full PR review pipeline."""
 from __future__ import annotations
+
 import concurrent.futures
+
 import structlog
+
 from app.agents.base import BaseAgent
-from app.agents.file_reviewer import FileReviewAgent, FileFinding, FileReviewResult
 from app.agents.classifier import ClassifierAgent
-from app.agents.context_builder import build_surrounding_context, build_intent_summary, build_convention_hints
+from app.agents.context_builder import (
+    build_convention_hints,
+    build_intent_summary,
+    build_surrounding_context,
+)
+from app.agents.file_reviewer import FileFinding, FileReviewAgent, FileReviewResult
 from app.config import get_settings
-from app.integrations.github_client import GitHubClient
-from app.reports.generator import generate_report
 from app.integrations.email_client import send_critical_finding_email
+from app.integrations.github_client import GitHubClient
 from app.integrations.slack_client import send_review_notification
-from app.integrations.ticket_provider import get_ticket_provider, TicketRequest
+from app.integrations.ticket_provider import TicketRequest, get_ticket_provider
+from app.reports.generator import generate_report
 
 log = structlog.get_logger(__name__)
 
@@ -86,7 +93,9 @@ class OrchestratorAgent(BaseAgent):
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
             futures = {
-                pool.submit(self._review_file, f, repo_full_name, base_ref, intent_summary, convention_hints): f.get("filename", "")
+                pool.submit(
+                    self._review_file, f, repo_full_name, base_ref, intent_summary, convention_hints
+                ): f.get("filename", "")
                 for f in reviewable
             }
             for future in concurrent.futures.as_completed(futures):
@@ -247,8 +256,8 @@ class OrchestratorAgent(BaseAgent):
         lines = [
             "## 🤖 MACRV Automated Code Review",
             "",
-            f"| Severity | Count |",
-            f"|---|---|",
+            "| Severity | Count |",
+            "|---|---|",
             f"| 🔴 Critical | {len(critical)} |",
             f"| 🟡 Suggestive | {len(suggestive)} |",
             f"| 🟢 Optimisation | {len(optimisation)} |",

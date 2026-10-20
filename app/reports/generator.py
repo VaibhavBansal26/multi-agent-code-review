@@ -1,9 +1,9 @@
 """Review report generator — Markdown, JSON, and (Phase 6) PDF."""
 from __future__ import annotations
-import json
-from datetime import datetime, timezone
-from app.agents.file_reviewer import FileFinding
 
+from datetime import UTC, datetime
+
+from app.agents.file_reviewer import FileFinding
 
 REPORT_TEMPLATE = """# Code Review Report
 
@@ -62,7 +62,7 @@ def generate_report(
     optimisation = [f for f in findings if f.severity == "optimisation"]
 
     findings_section = _render_findings(findings)
-    reviewed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    reviewed_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     markdown = REPORT_TEMPLATE.format(
         repo=repo,

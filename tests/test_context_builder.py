@@ -1,9 +1,9 @@
 """Tests for context_builder module."""
 from app.agents.context_builder import (
-    extract_changed_line_ranges,
-    build_surrounding_context,
-    build_intent_summary,
     build_convention_hints,
+    build_intent_summary,
+    build_surrounding_context,
+    extract_changed_line_ranges,
 )
 
 SAMPLE_DIFF = """@@ -10,6 +10,8 @@ def foo():

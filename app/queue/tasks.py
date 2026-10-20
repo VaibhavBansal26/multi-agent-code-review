@@ -1,7 +1,8 @@
 """Celery tasks for PR review pipeline."""
 from __future__ import annotations
+
 import structlog
-from celery import shared_task
+
 from app.queue.celery_app import celery_app
 
 log = structlog.get_logger(__name__)
@@ -88,7 +89,7 @@ def run_pr_review(
 
     except Exception as exc:
         log.error("pr_review_failed", repo=repo_full_name, pr=pr_number, error=str(exc))
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @celery_app.task(
@@ -120,4 +121,4 @@ def run_security_scan(
         )
     except Exception as exc:
         log.error("security_scan_failed", repo=repo_full_name, pr=pr_number, error=str(exc))
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

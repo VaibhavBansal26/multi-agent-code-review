@@ -1,8 +1,8 @@
 """Tests for Phase 6 evaluation harness."""
-import pytest
-from unittest.mock import MagicMock, patch
-from app.evals.harness import EvalCase, EvalHarness, EvalResult
+from unittest.mock import patch
+
 from app.agents.file_reviewer import FileFinding, FileReviewResult
+from app.evals.harness import EvalCase, EvalHarness, EvalResult
 
 
 def _make_harness():
@@ -103,7 +103,9 @@ class TestEvalHarness:
     def test_run_suite_aggregates(self):
         harness = _make_harness()
         cases = [_make_case(id=f"case-{i}") for i in range(3)]
-        finding = FileFinding(title="SQL injection", body="b", file_path="a.py", severity="critical")
+        finding = FileFinding(
+            title="SQL injection", body="b", file_path="a.py", severity="critical"
+        )
         mock_result = FileReviewResult(file_path="PR", findings=[finding])
         with patch("app.agents.file_reviewer.FileReviewAgent.review") as mock_review, \
              patch("app.agents.classifier.ClassifierAgent.classify") as mock_classify:

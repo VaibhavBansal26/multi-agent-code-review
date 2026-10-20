@@ -1,7 +1,9 @@
 """Finding classifier agent — normalises and ranks findings by severity."""
 from __future__ import annotations
+
 import json
 import re
+
 from app.agents.base import BaseAgent
 from app.agents.file_reviewer import FileFinding
 

@@ -1,7 +1,9 @@
 """GitHub API client — diff fetching, PR comments, reviews."""
 from __future__ import annotations
-import structlog
+
 import httpx
+import structlog
+
 from app.config import get_settings
 
 log = structlog.get_logger(__name__)
@@ -73,7 +75,7 @@ class GitHubClient:
             return {
                 "title": data.get("title", ""),
                 "body": data.get("body", "") or "",
-                "labels": [l["name"] for l in data.get("labels", [])],
+                "labels": [lbl["name"] for lbl in data.get("labels", [])],
                 "base_branch": data.get("base", {}).get("ref", "main"),
                 "head_branch": data.get("head", {}).get("ref", ""),
                 "author": data.get("user", {}).get("login", ""),

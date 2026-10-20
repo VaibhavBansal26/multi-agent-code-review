@@ -1,6 +1,8 @@
 """Builds rich context for each file being reviewed."""
 from __future__ import annotations
+
 import re
+
 import structlog
 
 log = structlog.get_logger(__name__)

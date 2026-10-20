@@ -1,10 +1,9 @@
 """Tests for Phase 2 agent implementations."""
 import json
-import pytest
 from unittest.mock import MagicMock, patch
-from app.agents.file_reviewer import FileReviewAgent, FileFinding, FileReviewResult
-from app.agents.classifier import ClassifierAgent
 
+from app.agents.classifier import ClassifierAgent
+from app.agents.file_reviewer import FileFinding, FileReviewAgent
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -71,7 +70,9 @@ class TestFileReviewAgent:
     def test_markdown_fenced_json_parsed(self):
         agent = FileReviewAgent.__new__(FileReviewAgent)
         agent.log = MagicMock()
-        fenced = '```json\n[{"title":"t","body":"b","file_path":"f.py","severity":"optimisation"}]\n```'
+        fenced = (
+            '```json\n[{"title":"t","body":"b","file_path":"f.py","severity":"optimisation"}]\n```'
+        )
         agent._call = MagicMock(return_value=_make_message(fenced))
         result = agent.review(file_path="f.py", diff="+x=1")
         assert len(result.findings) == 1
@@ -117,7 +118,8 @@ class TestFileReviewAgent:
         agent = FileReviewAgent()
         with patch.object(agent, "_call") as mock_call:
             mock_call.return_value = MagicMock(content=[MagicMock(text="[]")])
-            agent.review(file_path="app.py", diff="+x=1", context="PR Intent: fix bug\nSurrounding: line 5 | x = 0")
+            ctx = "PR Intent: fix bug\nSurrounding: line 5 | x = 0"
+            agent.review(file_path="app.py", diff="+x=1", context=ctx)
             call_args = mock_call.call_args
             user_msg = call_args[1]["messages"][0]["content"]
             assert "PR Intent" in user_msg
@@ -223,7 +225,6 @@ class TestOrchestratorAgent:
         assert OrchestratorAgent._should_skip("main.ts") is False
 
     def test_no_patch_files_skipped(self):
-        from app.agents.orchestrator import OrchestratorAgent
         agent = self._make_orchestrator()
         mock_files = [
             {"filename": "README.md", "patch": None},
@@ -265,7 +266,6 @@ class TestOrchestratorAgent:
         assert "Network error" in result["error"]
 
     def test_critical_finding_triggers_request_changes(self):
-        from app.agents.orchestrator import OrchestratorAgent
         agent = self._make_orchestrator()
         mock_files = [{"filename": "app.py", "patch": "+x = unsafe(user_input)"}]
         critical_finding = _make_finding(title="Injection", severity="critical", file_path="app.py")

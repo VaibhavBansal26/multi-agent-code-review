@@ -1,7 +1,7 @@
 """Tests for the GitHub webhook endpoint."""
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from tests.conftest import make_signature
 
 
@@ -81,7 +81,8 @@ class TestPullRequestEvent:
 
     def test_pr_synchronized_queued(self, client, pr_payload):
         pr_payload["action"] = "synchronize"
-        mock_task = MagicMock(); mock_task.id = "task-xyz"
+        mock_task = MagicMock()
+        mock_task.id = "task-xyz"
         with patch("app.queue.tasks.run_pr_review") as m:
             m.apply_async.return_value = mock_task
             resp = _post_webhook(client, "pull_request", pr_payload)
@@ -90,7 +91,8 @@ class TestPullRequestEvent:
 
     def test_pr_reopened_queued(self, client, pr_payload):
         pr_payload["action"] = "reopened"
-        mock_task = MagicMock(); mock_task.id = "task-reopened"
+        mock_task = MagicMock()
+        mock_task.id = "task-reopened"
         with patch("app.queue.tasks.run_pr_review") as m:
             m.apply_async.return_value = mock_task
             resp = _post_webhook(client, "pull_request", pr_payload)

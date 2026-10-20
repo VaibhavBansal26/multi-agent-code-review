@@ -1,36 +1,44 @@
 """SQLAlchemy ORM models."""
 from __future__ import annotations
+
 import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, Enum, ForeignKey,
-    Integer, String, Text, UniqueConstraint,
+    BigInteger,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
     pass
 
 
-class ReviewStatus(str, enum.Enum):
+class ReviewStatus(enum.StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
 
 
-class ReviewDecision(str, enum.Enum):
+class ReviewDecision(enum.StrEnum):
     APPROVED = "approved"
     CHANGES_REQUESTED = "changes_requested"
     COMMENTED = "commented"
 
 
-class Severity(str, enum.Enum):
+class Severity(enum.StrEnum):
     CRITICAL = "critical"
     SUGGESTIVE = "suggestive"
     OPTIMISATION = "optimisation"

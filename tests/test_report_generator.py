@@ -1,6 +1,4 @@
 """Tests for the report generator."""
-import json
-import pytest
 from app.agents.file_reviewer import FileFinding
 from app.reports.generator import generate_report
 

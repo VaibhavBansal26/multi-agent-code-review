@@ -1,11 +1,14 @@
 """Security scanner agent — SAST, secret detection, dependency CVEs."""
 from __future__ import annotations
+
 import json
+import os
 import re
 import subprocess
 import tempfile
-import os
+
 import structlog
+
 from app.agents.base import BaseAgent
 from app.agents.file_reviewer import FileFinding
 

@@ -1,13 +1,12 @@
 """Shared test fixtures."""
 import hashlib
 import hmac
-import json
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.config import get_settings
-
+from app.main import app
 
 TEST_SECRET = "test-webhook-secret-12345"
 
@@ -20,7 +19,6 @@ def make_signature(body: bytes, secret: str = TEST_SECRET) -> str:
 def client(monkeypatch):
     """FastAPI test client with patched settings."""
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", TEST_SECRET)
-    from app.config import get_settings
     get_settings.cache_clear()
     with TestClient(app) as c:
         yield c

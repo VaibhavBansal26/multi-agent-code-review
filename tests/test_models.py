@@ -1,6 +1,5 @@
 """Tests for Pydantic webhook models and DB models."""
-import pytest
-from app.webhook.models import PullRequestEvent, PingEvent, GitHubUser, GitHubRepo
+from app.webhook.models import PingEvent, PullRequestEvent
 
 
 class TestPullRequestEvent:

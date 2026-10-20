@@ -1,7 +1,8 @@
 """FastAPI application entry point."""
-import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Path, status
+
+import structlog
+from fastapi import FastAPI, Path, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings

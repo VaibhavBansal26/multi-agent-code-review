@@ -1,20 +1,26 @@
 """LangGraph-based orchestrator for MACRV review pipeline."""
 from __future__ import annotations
-import concurrent.futures
-from typing import TypedDict, Annotated
-import operator
-import structlog
-from langgraph.graph import StateGraph, END
 
-from app.agents.file_reviewer import FileReviewAgent, FileFinding, FileReviewResult
+import concurrent.futures
+import operator
+from typing import Annotated, TypedDict
+
+import structlog
+from langgraph.graph import END, StateGraph
+
 from app.agents.classifier import ClassifierAgent
+from app.agents.context_builder import (
+    build_convention_hints,
+    build_intent_summary,
+    build_surrounding_context,
+)
+from app.agents.file_reviewer import FileFinding, FileReviewAgent, FileReviewResult
 from app.agents.security_scanner import SecurityScannerAgent
-from app.agents.context_builder import build_surrounding_context, build_intent_summary, build_convention_hints
-from app.integrations.github_client import GitHubClient
-from app.reports.generator import generate_report
 from app.integrations.email_client import send_critical_finding_email
+from app.integrations.github_client import GitHubClient
 from app.integrations.slack_client import send_review_notification
-from app.integrations.ticket_provider import get_ticket_provider, TicketRequest
+from app.integrations.ticket_provider import TicketRequest, get_ticket_provider
+from app.reports.generator import generate_report
 
 log = structlog.get_logger(__name__)
 
@@ -126,8 +132,8 @@ def fan_out_review(state: ReviewState) -> dict:
                 surrounding = build_surrounding_context(file_content, patch)
                 if surrounding:
                     context_parts.append(f"=== Surrounding code ===\n{surrounding}")
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("context_fetch_failed", file=filename, error=str(exc))
 
         context = "\n\n".join(context_parts)
         return FileReviewAgent().review(file_path=filename, diff=patch, context=context)

@@ -1,10 +1,9 @@
 """Tests for GitHub client and review progress endpoint."""
-import json
-import pytest
-import respx
-import httpx
 from unittest.mock import MagicMock, patch
 
+import httpx
+import pytest
+import respx
 
 # ─── GitHubClient ────────────────────────────────────────────────────────────
 

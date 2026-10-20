@@ -1,9 +1,12 @@
 """Abstract ticket provider interface + Jira / Linear adapters."""
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import structlog
+
 import httpx
+import structlog
+
 from app.config import get_settings
 
 log = structlog.get_logger(__name__)

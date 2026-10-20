@@ -1,17 +1,16 @@
 """Tests for LangGraph-based graph orchestrator."""
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+from app.agents.file_reviewer import FileFinding, FileReviewResult
 from app.agents.graph_orchestrator import (
-    build_review_graph,
-    should_deep_scan,
     ReviewState,
-    fetch_pr,
-    fan_out_review,
+    build_review_graph,
     classify,
     deep_security_scan,
-    post_review,
+    fan_out_review,
+    fetch_pr,
+    should_deep_scan,
 )
-from app.agents.file_reviewer import FileFinding, FileReviewResult
 
 
 def _base_state(**overrides) -> ReviewState:

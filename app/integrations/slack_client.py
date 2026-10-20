@@ -1,7 +1,9 @@
 """Slack notification client (incoming webhook)."""
 from __future__ import annotations
-import structlog
+
 import httpx
+import structlog
+
 from app.config import get_settings
 
 log = structlog.get_logger(__name__)
@@ -25,7 +27,7 @@ def send_review_notification(
         log.info("slack_skipped_no_webhook")
         return False
 
-    total = critical + suggestive + optimisation
+    critical + suggestive + optimisation
     color = "#ff5252" if critical else "#4caf50"
     decision_icon = "🚫" if decision == "REQUEST_CHANGES" else "✅"
 

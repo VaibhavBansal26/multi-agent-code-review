@@ -1,9 +1,10 @@
 """MACRV evaluation harness — measures review quality against labelled test cases."""
 from __future__ import annotations
-import json
+
 import time
 from dataclasses import dataclass, field
 from typing import Any
+
 import structlog
 
 log = structlog.get_logger(__name__)
@@ -52,6 +53,7 @@ class EvalHarness:
         if self.use_weave:
             try:
                 import weave  # type: ignore
+
                 from app.config import get_settings
                 settings = get_settings()
                 weave.init(settings.weave_project)
@@ -71,8 +73,8 @@ class EvalHarness:
 
     def run_case(self, case: EvalCase) -> EvalResult:
         """Run the review pipeline on one case and score the result."""
-        from app.agents.file_reviewer import FileReviewAgent
         from app.agents.classifier import ClassifierAgent
+        from app.agents.file_reviewer import FileReviewAgent
 
         start = time.monotonic()
 
@@ -177,7 +179,6 @@ class EvalHarness:
 
     def _log_to_weave(self, case: EvalCase, result: EvalResult) -> None:
         try:
-            import weave  # type: ignore
             # weave.log is version-dependent; use the call API when available
             pass  # actual logging done by @weave.op decorator in production
         except Exception as exc:

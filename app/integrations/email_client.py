@@ -1,6 +1,8 @@
 """Email notification client (SendGrid)."""
 from __future__ import annotations
+
 import structlog
+
 from app.config import get_settings
 
 log = structlog.get_logger(__name__)
