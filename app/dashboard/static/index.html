@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MACRV Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --green: #238636;
+      --green-text: #3fb950;
+      --red: #da3633;
+      --red-text: #f85149;
+      --yellow: #9e6a03;
+      --yellow-text: #d29922;
+      --blue: #1f6feb;
+      --blue-text: #388bfd;
+      --purple-text: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+    a { color: var(--blue-text); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header .subtitle { color: var(--text-muted); font-size: 12px; }
+    .refresh-btn { margin-left: auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .refresh-btn:hover { background: var(--border); }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .tab { padding: 8px 16px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; font-size: 13px; }
+    .tab.active { color: var(--text); border-bottom-color: var(--blue-text); }
+    .tab:hover { color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Stat cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .stat-card .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; }
+    .stat-card .value.green { color: var(--green-text); }
+    .stat-card .value.red { color: var(--red-text); }
+    .stat-card .value.yellow { color: var(--yellow-text); }
+    .stat-card .value.blue { color: var(--blue-text); }
+
+    /* Table */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .table-toolbar { padding: 12px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); }
+    .table-toolbar select, .table-toolbar input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 10px 16px; text-align: left; font-size: 12px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-critical { background: #3d1a1a; color: var(--red-text); }
+    .badge-suggestive { background: #2d2408; color: var(--yellow-text); }
+    .badge-optimisation { background: #0d1f36; color: var(--blue-text); }
+    .badge-approved { background: #0f2a1c; color: var(--green-text); }
+    .badge-changes { background: #3d1a1a; color: var(--red-text); }
+    .badge-commented { background: #1c1f2e; color: var(--purple-text); }
+    .badge-pending { background: var(--surface2); color: var(--text-muted); }
+    .badge-in_progress { background: #0d1f36; color: var(--blue-text); }
+    .badge-completed { background: #0f2a1c; color: var(--green-text); }
+    .badge-failed { background: #3d1a1a; color: var(--red-text); }
+
+    /* Action buttons */
+    .btn { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+    .btn:hover { background: var(--border); }
+    .btn-danger { border-color: var(--red); color: var(--red-text); }
+    .btn-danger:hover { background: #3d1a1a; }
+    .btn-primary { border-color: var(--blue); color: var(--blue-text); }
+    .btn-primary:hover { background: #1c2a3e; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-width: 420px; max-width: 600px; width: 90%; }
+    .modal h2 { font-size: 15px; margin-bottom: 16px; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 6px; font-size: 13px; }
+
+    /* Finding drawer */
+    .drawer { display: none; position: fixed; right: 0; top: 0; bottom: 0; width: 480px; background: var(--surface); border-left: 1px solid var(--border); z-index: 90; overflow-y: auto; padding: 20px; }
+    .drawer.open { display: block; }
+    .drawer-header { display: flex; align-items: center; margin-bottom: 16px; gap: 8px; }
+    .drawer-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; margin-left: auto; }
+    .finding-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+    .finding-item .finding-title { font-weight: 600; margin-bottom: 4px; }
+    .finding-item .finding-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .finding-item .finding-body { font-size: 13px; line-height: 1.5; }
+
+    /* Repos grid */
+    .repos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .repo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .repo-card h3 { font-size: 14px; font-weight: 600; color: var(--blue-text); margin-bottom: 10px; word-break: break-all; }
+    .repo-meta { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
+    .repo-meta span b { color: var(--text); }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 48px; color: var(--text-muted); }
+    .empty .icon { font-size: 32px; margin-bottom: 10px; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue-text); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    #toast.show { opacity: 1; }
+
+    @media (max-width: 600px) {
+      main { padding: 12px; }
+      .drawer { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#388bfd" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+  <h1>MACRV</h1>
+  <span class="subtitle">Multi-Agent Code Review</span>
+  <button class="refresh-btn" onclick="refreshAll()">&#8635; Refresh</button>
+</header>
+
+<main>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">Overview</div>
+    <div class="tab" onclick="switchTab('reviews')">PR Reviews</div>
+    <div class="tab" onclick="switchTab('findings')">Findings</div>
+    <div class="tab" onclick="switchTab('repos')">Repositories</div>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-panel active">
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="label">Total Reviews</div><div class="value blue" id="stat-total">–</div></div>
+      <div class="stat-card"><div class="label">Pending</div><div class="value yellow" id="stat-pending">–</div></div>
+      <div class="stat-card"><div class="label">In Progress</div><div class="value blue" id="stat-in-progress">–</div></div>
+      <div class="stat-card"><div class="label">Completed</div><div class="value green" id="stat-completed">–</div></div>
+      <div class="stat-card"><div class="label">Approved</div><div class="value green" id="stat-approved">–</div></div>
+      <div class="stat-card"><div class="label">Changes Requested</div><div class="value red" id="stat-changes">–</div></div>
+      <div class="stat-card"><div class="label">Critical Findings</div><div class="value red" id="stat-critical">–</div></div>
+      <div class="stat-card"><div class="label">Repos Connected</div><div class="value blue" id="stat-repos">–</div></div>
+    </div>
+
+    <h2 style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">Connected Repositories</h2>
+    <div id="overview-repos" class="repos-grid"></div>
+  </div>
+
+  <!-- REVIEWS TAB -->
+  <div id="tab-reviews" class="tab-panel">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <select id="filter-status" onchange="loadReviews()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
+        <select id="filter-repo" onchange="loadReviews()">
+          <option value="">All Repos</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>PR</th><th>Repo</th><th>Author</th><th>Status</th><th>Decision</th>
+            <th>Critical</th><th>Created</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reviews-tbody">
+          <tr><td colspan="8" class="empty"><span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FINDINGS TAB -->
+  <div id="tab-findings" class="tab-panel">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <select id="filter-severity" onchange="loadFindings()">
+          <option value="">All Severities</option>
+          <option value="critical">Critical</option>
+          <option value="suggestive">Suggestive</option>
+          <option value="optimisation">Optimisation</option>
+        </select>
+        <select id="filter-findings-repo" onchange="loadFindings()">
+          <option value="">All Repos</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Severity</th><th>Title</th><th>File</th><th>PR</th><th>Source</th><th>Date</th></tr>
+        </thead>
+        <tbody id="findings-tbody">
+          <tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REPOS TAB -->
+  <div id="tab-repos" class="tab-panel">
+    <div id="repos-grid-main" class="repos-grid"></div>
+  </div>
+</main>
+
+<!-- Assign Modal -->
+<div id="assign-modal" class="modal-overlay">
+  <div class="modal">
+    <h2>Assign Human Review</h2>
+    <div class="form-group">
+      <label>GitHub Username</label>
+      <input id="assign-username" type="text" placeholder="e.g. octocat" />
+    </div>
+    <div id="assign-pr-info" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAssign()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- Findings Drawer -->
+<div id="findings-drawer" class="drawer">
+  <div class="drawer-header">
+    <strong id="drawer-title">Findings</strong>
+    <button class="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div id="drawer-content"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let currentAssignReviewId = null;
+  let repoList = [];
+
+  // ---------------------------------------------------------------------------
+  // Tab switching
+  // ---------------------------------------------------------------------------
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      const tabs = ['overview','reviews','findings','repos'];
+      t.classList.toggle('active', tabs[i] === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'reviews') loadReviews();
+    if (name === 'findings') loadFindings();
+    if (name === 'repos') loadRepos();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
+  async function api(path) {
+    const r = await fetch('/dashboard' + path);
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  async function loadStats() {
+    try {
+      const d = await api('/api/stats');
+      document.getElementById('stat-total').textContent = d.total_reviews;
+      document.getElementById('stat-pending').textContent = d.pending;
+      document.getElementById('stat-in-progress').textContent = d.in_progress;
+      document.getElementById('stat-completed').textContent = d.completed;
+      document.getElementById('stat-approved').textContent = d.approved;
+      document.getElementById('stat-changes').textContent = d.changes_requested;
+      document.getElementById('stat-critical').textContent = d.critical_findings;
+      document.getElementById('stat-repos').textContent = d.connected_repos_count;
+      repoList = d.connected_repos || [];
+      renderOverviewRepos(repoList);
+      populateRepoFilters(repoList);
+    } catch(e) { console.error(e); }
+  }
+
+  function renderOverviewRepos(repos) {
+    const el = document.getElementById('overview-repos');
+    if (!repos.length) { el.innerHTML = '<p class="empty"><span class="icon">&#128230;</span><br>No repositories connected yet. Install the MACRV GitHub App and open a PR.</p>'; return; }
+    el.innerHTML = repos.map(r => `
+      <div class="repo-card">
+        <h3><a href="https://github.com/${r}" target="_blank">${r}</a></h3>
+        <div class="repo-meta"><span>Connected</span></div>
+      </div>
+    `).join('');
+  }
+
+  function populateRepoFilters(repos) {
+    ['filter-repo','filter-findings-repo'].forEach(id => {
+      const sel = document.getElementById(id);
+      const val = sel.value;
+      sel.innerHTML = '<option value="">All Repos</option>' + repos.map(r => `<option value="${r}"${r===val?' selected':''}>${r}</option>`).join('');
+    });
+  }
+
+  async function loadReviews() {
+    const status = document.getElementById('filter-status').value;
+    const repo = document.getElementById('filter-repo').value;
+    const tbody = document.getElementById('reviews-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      if (repo) params.set('repo', repo);
+      const d = await api('/api/reviews?' + params);
+      if (!d.reviews.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No reviews found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = d.reviews.map(r => `
+        <tr>
+          <td><a href="https://github.com/${r.repo}/pull/${r.pr_number}" target="_blank">#${r.pr_number}</a><br><span style="color:var(--text-muted);font-size:11px">${esc(r.pr_title||'').slice(0,40)}</span></td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.repo)}</td>
+          <td>${esc(r.author)}</td>
+          <td><span class="badge badge-${r.status}">${r.status}</span></td>
+          <td>${r.decision ? `<span class="badge badge-${r.decision === 'changes_requested' ? 'changes' : r.decision}">${r.decision}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+          <td>${r.critical > 0 ? `<span class="badge badge-critical">${r.critical}</span>` : '<span style="color:var(--text-muted)">0</span>'}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${relTime(r.created_at)}</td>
+          <td>
+            <button class="btn btn-primary" onclick="showFindings(${r.id},'${esc(r.repo)}#${r.pr_number}')">Findings</button>
+            <button class="btn" onclick="rescan(${r.id})">Re-scan</button>
+            <button class="btn" onclick="openAssign(${r.id},'${esc(r.repo)}','${r.pr_number}')">Assign</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Error: ${e.message}</td></tr>`; }
+  }
+
+  async function loadFindings() {
+    const severity = document.getElementById('filter-severity').value;
+    const repo = document.getElementById('filter-findings-repo').value;
+    const tbody = document.getElementById('findings-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
+    try {
+      const params = new URLSearchParams();
+      if (severity) params.set('severity', severity);
+      if (repo) params.set('repo', repo);
+      const d = await api('/api/findings?' + params);
+      if (!d.findings.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>'; return; }
+      tbody.innerHTML = d.findings.map(f => `
+        <tr>
+          <td><span class="badge badge-${f.severity}">${f.severity}</span></td>
+          <td>${esc(f.title)}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${esc(f.file_path)}${f.line_start ? ':'+f.line_start : ''}</td>
+          <td><a href="https://github.com/${f.repo}/pull/${f.pr_number}" target="_blank">#${f.pr_number}</a></td>
+          <td style="font-size:12px;color:var(--text-muted)">${esc(f.source)}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${relTime(f.created_at)}</td>
+        </tr>
+      `).join('');
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`; }
+  }
+
+  async function loadRepos() {
+    const el = document.getElementById('repos-grid-main');
+    el.innerHTML = '<p style="color:var(--text-muted)"><span class="spinner"></span></p>';
+    try {
+      const d = await api('/api/repos');
+      if (!d.repos.length) { el.innerHTML = '<p class="empty"><span class="icon">&#128230;</span><br>No repositories yet.</p>'; return; }
+      el.innerHTML = d.repos.map(r => `
+        <div class="repo-card">
+          <h3><a href="https://github.com/${r.repo}" target="_blank">${r.repo}</a></h3>
+          <div class="repo-meta">
+            <span>Total <b>${r.total}</b></span>
+            <span>Pending <b>${r.pending}</b></span>
+            <span>Approved <b>${r.approved}</b></span>
+            <span>Changes <b>${r.changes_requested}</b></span>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) { el.innerHTML = `<p class="empty">Error: ${e.message}</p>`; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
+  async function rescan(reviewId) {
+    try {
+      const d = await fetch(`/dashboard/api/reviews/${reviewId}/rescan`, { method: 'POST' });
+      if (!d.ok) throw new Error(await d.text());
+      const j = await d.json();
+      toast(`Re-scan queued (task: ${j.task_id.slice(0,8)}…)`);
+      setTimeout(loadReviews, 500);
+    } catch(e) { toast('Error: ' + e.message, true); }
+  }
+
+  function openAssign(reviewId, repo, prNumber) {
+    currentAssignReviewId = reviewId;
+    document.getElementById('assign-pr-info').textContent = `${repo} #${prNumber}`;
+    document.getElementById('assign-username').value = '';
+    document.getElementById('assign-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('assign-modal').classList.remove('open');
+    currentAssignReviewId = null;
+  }
+
+  async function submitAssign() {
+    const username = document.getElementById('assign-username').value.trim();
+    if (!username) return;
+    try {
+      const r = await fetch(`/dashboard/api/reviews/${currentAssignReviewId}/assign`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({assignee: username}),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const j = await r.json();
+      toast(j.message);
+      closeModal();
+    } catch(e) { toast('Error: ' + e.message, true); }
+  }
+
+  async function showFindings(reviewId, label) {
+    document.getElementById('drawer-title').textContent = `Findings — ${label}`;
+    document.getElementById('drawer-content').innerHTML = '<span class="spinner"></span>';
+    document.getElementById('findings-drawer').classList.add('open');
+    try {
+      const d = await api(`/api/reviews/${reviewId}`);
+      const findings = d.findings || [];
+      if (!findings.length) {
+        document.getElementById('drawer-content').innerHTML = '<p class="empty">No findings for this PR.</p>';
+        return;
+      }
+      document.getElementById('drawer-content').innerHTML = findings.map(f => `
+        <div class="finding-item">
+          <div class="finding-title"><span class="badge badge-${f.severity}">${f.severity}</span> ${esc(f.title)}</div>
+          <div class="finding-meta">${esc(f.file_path)}${f.line_start ? ' :'+f.line_start : ''} · ${esc(f.source)}</div>
+          <div class="finding-body">${esc(f.body)}</div>
+        </div>
+      `).join('');
+    } catch(e) { document.getElementById('drawer-content').innerHTML = `<p class="empty">Error: ${e.message}</p>`; }
+  }
+
+  function closeDrawer() { document.getElementById('findings-drawer').classList.remove('open'); }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function relTime(iso) {
+    const d = new Date(iso), now = new Date(), diff = (now - d) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
+  let _toastTimer;
+  function toast(msg, isError) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  function refreshAll() { loadStats(); if (document.querySelector('.tab-panel.active').id === 'tab-reviews') loadReviews(); }
+
+  // ---------------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------------
+  loadStats();
+  setInterval(loadStats, 30000);  // auto-refresh stats every 30s
+</script>
+</body>
+</html>

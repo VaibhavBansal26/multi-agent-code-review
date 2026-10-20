@@ -6,6 +6,7 @@ from fastapi import FastAPI, Path, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
+from app.dashboard.router import router as dashboard_router
 from app.webhook.router import router as webhook_router
 
 log = structlog.get_logger(__name__)
@@ -29,6 +30,7 @@ app = FastAPI(
 )
 
 app.include_router(webhook_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["health"])
