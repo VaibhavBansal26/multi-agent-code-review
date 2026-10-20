@@ -64,9 +64,9 @@ def run_pr_review(
     )
 
     try:
-        from app.agents.orchestrator import OrchestratorAgent
+        from app.agents.graph_orchestrator import GraphOrchestratorAgent
 
-        orchestrator = OrchestratorAgent()
+        orchestrator = GraphOrchestratorAgent()
         result = orchestrator.run(
             repo_full_name=repo_full_name,
             pr_number=pr_number,
