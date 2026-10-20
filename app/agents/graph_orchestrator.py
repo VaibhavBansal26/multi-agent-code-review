@@ -188,7 +188,20 @@ def deep_security_scan(state: ReviewState) -> dict:
             files=[f.get("filename", "") for f in critical_file_infos],
             patches=patches,
         )
-        new_findings = scan_result.get("findings", [])
+        raw = scan_result.get("findings", [])
+        new_findings = [
+            f if isinstance(f, FileFinding) else FileFinding(
+                title=f.get("title", "Security finding"),
+                body=f.get("body", f.get("message", "")),
+                file_path=f.get("file_path", f.get("path", "")),
+                line_start=f.get("line_start", f.get("line")),
+                line_end=f.get("line_end"),
+                suggestion=f.get("suggestion"),
+                severity=f.get("severity", "critical"),
+                source="security_scanner",
+            )
+            for f in raw
+        ]
         log.info("graph_deep_scan_done", new_findings=len(new_findings))
         return {"all_findings": new_findings, "security_scan_done": True}
     except Exception as exc:
