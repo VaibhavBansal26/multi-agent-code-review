@@ -113,6 +113,16 @@ class TestFileReviewAgent:
     def test_parse_json_array_returns_empty_on_total_failure(self):
         assert FileReviewAgent._parse_json_array("nothing useful") == []
 
+    def test_review_with_context_passed_through(self):
+        agent = FileReviewAgent()
+        with patch.object(agent, "_call") as mock_call:
+            mock_call.return_value = MagicMock(content=[MagicMock(text="[]")])
+            agent.review(file_path="app.py", diff="+x=1", context="PR Intent: fix bug\nSurrounding: line 5 | x = 0")
+            call_args = mock_call.call_args
+            user_msg = call_args[1]["messages"][0]["content"]
+            assert "PR Intent" in user_msg
+            assert "Surrounding" in user_msg
+
 
 # ─── ClassifierAgent ────────────────────────────────────────────────────────
 

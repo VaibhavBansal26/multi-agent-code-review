@@ -5,6 +5,7 @@ import structlog
 from app.agents.base import BaseAgent
 from app.agents.file_reviewer import FileReviewAgent, FileFinding, FileReviewResult
 from app.agents.classifier import ClassifierAgent
+from app.agents.context_builder import build_surrounding_context, build_intent_summary, build_convention_hints
 from app.config import get_settings
 from app.integrations.github_client import GitHubClient
 from app.reports.generator import generate_report
@@ -68,13 +69,24 @@ class OrchestratorAgent(BaseAgent):
 
         self.log.info("files_to_review", total=len(files), reviewable=len(reviewable))
 
+        # Fetch PR intent context (best-effort)
+        try:
+            pr_detail = gh.get_pr_detail(repo_full_name, pr_number)
+        except Exception:
+            pr_detail = {"title": pr_title, "body": "", "labels": [], "base_branch": "main", "head_branch": ""}
+
+        base_ref = pr_detail.get("base_branch", "main")
+        intent_summary = build_intent_summary({**pr_detail, "title": pr_title})
+        all_file_paths = [f.get("filename", "") for f in files]
+        convention_hints = build_convention_hints(all_file_paths)
+
         # 2. Fan out file reviewers in parallel
         all_findings: list[FileFinding] = []
         progress = {"reviewed": 0, "total": len(reviewable)}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
             futures = {
-                pool.submit(self._review_file, f): f.get("filename", "")
+                pool.submit(self._review_file, f, repo_full_name, base_ref, intent_summary, convention_hints): f.get("filename", "")
                 for f in reviewable
             }
             for future in concurrent.futures.as_completed(futures):
@@ -168,13 +180,38 @@ class OrchestratorAgent(BaseAgent):
         )
         return result
 
-    def _review_file(self, file_info: dict) -> FileReviewResult:
+    def _review_file(
+        self,
+        file_info: dict,
+        repo: str = "",
+        base_ref: str = "main",
+        intent_summary: str = "",
+        convention_hints: str = "",
+    ) -> FileReviewResult:
         filename = file_info.get("filename", "")
         patch = file_info.get("patch", "") or ""
         if len(patch) > _MAX_DIFF_CHARS:
             patch = patch[:_MAX_DIFF_CHARS] + "\n... (diff truncated)"
+
+        context_parts = []
+        if intent_summary:
+            context_parts.append(f"=== PR Intent ===\n{intent_summary}")
+        if convention_hints:
+            context_parts.append(f"=== Codebase Conventions to consider ===\n{convention_hints}")
+
+        if repo and base_ref:
+            try:
+                gh = GitHubClient()
+                file_content = gh.get_file_content(repo, base_ref, filename)
+                surrounding = build_surrounding_context(file_content, patch)
+                if surrounding:
+                    context_parts.append(f"=== Surrounding code (base branch) ===\n{surrounding}")
+            except Exception as exc:
+                self.log.debug("context_fetch_failed", file=filename, error=str(exc))
+
+        context = "\n\n".join(context_parts)
         reviewer = FileReviewAgent()
-        return reviewer.review(file_path=filename, diff=patch)
+        return reviewer.review(file_path=filename, diff=patch, context=context)
 
     @staticmethod
     def _should_skip(filename: str) -> bool:

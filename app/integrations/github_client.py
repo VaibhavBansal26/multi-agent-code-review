@@ -63,6 +63,36 @@ class GitHubClient:
             resp.raise_for_status()
             return resp.json()
 
+    def get_pr_detail(self, repo: str, pr_number: int) -> dict:
+        """Fetch PR metadata: title, body, labels, branches."""
+        url = f"{self.BASE}/repos/{repo}/pulls/{pr_number}"
+        with httpx.Client(headers=self.headers) as client:
+            resp = client.get(url, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            return {
+                "title": data.get("title", ""),
+                "body": data.get("body", "") or "",
+                "labels": [l["name"] for l in data.get("labels", [])],
+                "base_branch": data.get("base", {}).get("ref", "main"),
+                "head_branch": data.get("head", {}).get("ref", ""),
+                "author": data.get("user", {}).get("login", ""),
+            }
+
+    def get_file_content(self, repo: str, ref: str, path: str) -> str:
+        """Fetch raw file content at a given ref (base branch SHA)."""
+        import base64
+        url = f"{self.BASE}/repos/{repo}/contents/{path}"
+        with httpx.Client(headers=self.headers) as client:
+            resp = client.get(url, params={"ref": ref}, timeout=30)
+            if resp.status_code == 404:
+                return ""
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("encoding") == "base64":
+                return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+            return data.get("content", "")
+
     def get_commit(self, repo: str, sha: str) -> dict:
         url = f"{self.BASE}/repos/{repo}/commits/{sha}"
         with httpx.Client(headers=self.headers) as client:
