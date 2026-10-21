@@ -58,9 +58,13 @@ class PRReview(Base):
     author_login: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     author_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[ReviewStatus] = mapped_column(
-        Enum(ReviewStatus), nullable=False, default=ReviewStatus.PENDING
+        Enum(ReviewStatus, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=ReviewStatus.PENDING,
     )
-    decision: Mapped[ReviewDecision | None] = mapped_column(Enum(ReviewDecision), nullable=True)
+    decision: Mapped[ReviewDecision | None] = mapped_column(
+        Enum(ReviewDecision, values_callable=lambda obj: [e.value for e in obj]), nullable=True
+    )
     task_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     files_reviewed: Mapped[int] = mapped_column(Integer, default=0)
     github_review_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -85,7 +89,9 @@ class Finding(Base):
     review_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("pr_reviews.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    severity: Mapped[Severity] = mapped_column(Enum(Severity), nullable=False, index=True)
+    severity: Mapped[Severity] = mapped_column(
+        Enum(Severity, values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True
+    )
     file_path: Mapped[str] = mapped_column(String(1000), nullable=False)
     line_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     line_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
