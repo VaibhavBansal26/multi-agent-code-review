@@ -17,9 +17,21 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE IF NOT EXISTS reviewstatus AS ENUM ('pending', 'in_progress', 'completed', 'failed')")
-    op.execute("CREATE TYPE IF NOT EXISTS reviewdecision AS ENUM ('approved', 'changes_requested', 'commented')")
-    op.execute("CREATE TYPE IF NOT EXISTS severity AS ENUM ('critical', 'suggestive', 'optimisation')")
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE reviewstatus AS ENUM ('pending', 'in_progress', 'completed', 'failed');
+        EXCEPTION WHEN duplicate_object THEN null; END $$
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE reviewdecision AS ENUM ('approved', 'changes_requested', 'commented');
+        EXCEPTION WHEN duplicate_object THEN null; END $$
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE severity AS ENUM ('critical', 'suggestive', 'optimisation');
+        EXCEPTION WHEN duplicate_object THEN null; END $$
+    """)
 
     op.create_table(
         "pr_reviews",
