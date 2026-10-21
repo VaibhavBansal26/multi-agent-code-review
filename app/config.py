@@ -68,7 +68,13 @@ class Settings(BaseSettings):
             )
         sync = self.database_url_sync
         if sync.startswith("postgresql+asyncpg://"):
-            self.database_url_sync = sync.replace("postgresql+asyncpg://", "postgresql://", 1)
+            sync = sync.replace("postgresql+asyncpg://", "postgresql://", 1)
+        # Ensure psycopg2 driver is explicit so SQLAlchemy 2.x doesn't try psycopg3
+        if sync.startswith("postgresql://") or sync.startswith("postgres://"):
+            sync = sync.replace("postgres://", "postgresql://", 1).replace(
+                "postgresql://", "postgresql+psycopg2://", 1
+            )
+        self.database_url_sync = sync
         return self
 
     @property
