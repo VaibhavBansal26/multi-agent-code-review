@@ -84,3 +84,5 @@ class PingEvent(BaseModel):
     zen: str
     hook_id: int
     hook: dict[str, Any]
+    repository: GitHubRepo | None = None
+    sender: GitHubUser | None = None

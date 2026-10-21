@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -104,6 +105,17 @@ class Finding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     review: Mapped[PRReview] = relationship("PRReview", back_populates="findings")
+
+
+class ConnectedRepo(Base):
+    __tablename__ = "connected_repos"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    repo_full_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    hook_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class ReviewReport(Base):

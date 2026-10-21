@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.db.models import Finding, PRReview, ReviewDecision, ReviewStatus, Severity  # noqa: F401
+from app.db.models import ConnectedRepo, Finding, PRReview, ReviewDecision, ReviewStatus, Severity  # noqa: F401
 from app.db.session import get_db
 
 log = structlog.get_logger(__name__)
@@ -62,13 +62,17 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> JSONResponse:
         select(func.count(Finding.id)).where(Finding.severity == Severity.CRITICAL)
     )).scalar_one()
 
-    # Connected repos = distinct repos from DB + any configured via env var
-    repos_result = await db.execute(select(PRReview.repo_full_name).distinct())
-    db_repos = {r[0] for r in repos_result.fetchall()}
+    # Connected repos = webhook-registered + reviewed + env-var configured
+    reviewed_result = await db.execute(select(PRReview.repo_full_name).distinct())
+    reviewed_repos = {r[0] for r in reviewed_result.fetchall()}
+    webhook_result = await db.execute(
+        select(ConnectedRepo.repo_full_name).where(ConnectedRepo.active == True)  # noqa: E712
+    )
+    webhook_repos = {r[0] for r in webhook_result.fetchall()}
     cfg_repos = {
         r.strip() for r in get_settings().connected_repos.split(",") if r.strip()
     }
-    connected_repos = sorted(db_repos | cfg_repos)
+    connected_repos = sorted(reviewed_repos | webhook_repos | cfg_repos)
 
     return JSONResponse({
         "total_reviews": total_reviews,
@@ -190,33 +194,35 @@ async def assign_human_review(
 
 @router.get("/api/repos")
 async def list_repos(db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Return all repos that have been reviewed, with summary counts."""
-    rows = (await db.execute(
+    """Return all connected repos with summary counts."""
+    reviewed = (await db.execute(
         select(
             PRReview.repo_full_name,
             func.count(PRReview.id).label("total"),
-            func.sum(
-                func.cast(PRReview.status == ReviewStatus.PENDING, Integer_)
-            ).label("pending"),
-            func.sum(
-                func.cast(PRReview.decision == ReviewDecision.APPROVED, Integer_)
-            ).label("approved"),
-            func.sum(
-                func.cast(PRReview.decision == ReviewDecision.CHANGES_REQUESTED, Integer_)
-            ).label("changes_requested"),
-        ).group_by(PRReview.repo_full_name).order_by(PRReview.repo_full_name)
+            func.sum(func.cast(PRReview.status == ReviewStatus.PENDING, Integer_)).label("pending"),
+            func.sum(func.cast(PRReview.decision == ReviewDecision.APPROVED, Integer_)).label("approved"),
+            func.sum(func.cast(PRReview.decision == ReviewDecision.CHANGES_REQUESTED, Integer_)).label("changes_requested"),
+        ).group_by(PRReview.repo_full_name)
     )).all()
+    reviewed_map = {r.repo_full_name: r for r in reviewed}
 
+    # include webhook-connected repos that haven't had reviews yet
+    connected = (await db.execute(
+        select(ConnectedRepo.repo_full_name).where(ConnectedRepo.active == True)  # noqa: E712
+    )).scalars().all()
+    cfg_repos = [r.strip() for r in get_settings().connected_repos.split(",") if r.strip()]
+
+    all_repos = sorted(set(list(reviewed_map.keys()) + list(connected) + cfg_repos))
     return JSONResponse({
         "repos": [
             {
-                "repo": r.repo_full_name,
-                "total": r.total,
-                "pending": int(r.pending or 0),
-                "approved": int(r.approved or 0),
-                "changes_requested": int(r.changes_requested or 0),
+                "repo": name,
+                "total": int(reviewed_map[name].total) if name in reviewed_map else 0,
+                "pending": int((reviewed_map[name].pending or 0)) if name in reviewed_map else 0,
+                "approved": int((reviewed_map[name].approved or 0)) if name in reviewed_map else 0,
+                "changes_requested": int((reviewed_map[name].changes_requested or 0)) if name in reviewed_map else 0,
             }
-            for r in rows
+            for name in all_repos
         ]
     })
 

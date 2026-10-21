@@ -1,10 +1,15 @@
 import json
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
+from app.db.models import ConnectedRepo
+from app.db.session import get_db
 from app.webhook.models import PingEvent, PullRequestEvent
 from app.webhook.validator import verify_github_signature
 
@@ -20,6 +25,7 @@ async def github_webhook(
     x_github_event: str = Header(..., alias="X-GitHub-Event"),
     x_github_delivery: str = Header(default="", alias="X-GitHub-Delivery"),
     settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     body = await verify_github_signature(request, settings.github_webhook_secret)
     payload = json.loads(body)
@@ -33,12 +39,35 @@ async def github_webhook(
     if x_github_event == "ping":
         event = PingEvent(**payload)
         log.info("github_ping", hook_id=event.hook_id, zen=event.zen)
+        if event.repository:
+            await _upsert_connected_repo(db, event.repository.full_name, event.hook_id)
         return JSONResponse({"status": "pong", "hook_id": event.hook_id})
 
     if x_github_event == "pull_request":
         return await _handle_pull_request(payload, x_github_delivery)
 
     return JSONResponse({"status": "ignored", "event": x_github_event})
+
+
+async def _upsert_connected_repo(db: AsyncSession, repo_full_name: str, hook_id: int) -> None:
+    now = datetime.now(UTC)
+    existing = (await db.execute(
+        select(ConnectedRepo).where(ConnectedRepo.repo_full_name == repo_full_name)
+    )).scalar_one_or_none()
+    if existing:
+        existing.hook_id = hook_id
+        existing.active = True
+        existing.updated_at = now
+    else:
+        db.add(ConnectedRepo(
+            repo_full_name=repo_full_name,
+            hook_id=hook_id,
+            active=True,
+            connected_at=now,
+            updated_at=now,
+        ))
+    await db.commit()
+    log.info("connected_repo_upserted", repo=repo_full_name, hook_id=hook_id)
 
 
 async def _handle_pull_request(payload: dict, delivery_id: str) -> JSONResponse:
