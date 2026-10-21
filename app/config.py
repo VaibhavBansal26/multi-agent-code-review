@@ -1,7 +1,40 @@
 from functools import lru_cache
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_ASYNCPG_ALLOWED_PARAMS = {"ssl", "timeout", "statement_cache_size", "prepared_statement_cache_size"}
+
+
+def _make_asyncpg_url(url: str) -> str:
+    """Coerce a plain postgresql:// URL to postgresql+asyncpg://, stripping params asyncpg rejects."""
+    url = url.replace("postgres://", "postgresql://", 1)
+    if not url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    # Translate sslmode → ssl (asyncpg uses ssl=require, not sslmode=require)
+    if "sslmode" in params:
+        mode = params.pop("sslmode")[0]
+        if mode in ("require", "verify-ca", "verify-full"):
+            params["ssl"] = ["require"]
+        elif mode == "disable":
+            params["ssl"] = ["disable"]
+    # Drop any param asyncpg doesn't understand (e.g. channel_binding, options, application_name)
+    params = {k: v for k, v in params.items() if k in _ASYNCPG_ALLOWED_PARAMS}
+    return urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+
+
+def _make_psycopg2_url(url: str) -> str:
+    """Coerce a URL to postgresql+psycopg2://, keeping standard params psycopg2 supports."""
+    url = url.replace("postgres://", "postgresql://", 1)
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return url
 
 
 class Settings(BaseSettings):
@@ -60,29 +93,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _fix_db_schemes(self) -> "Settings":
-        # Coerce scheme and fix SSL params for each driver.
-        url = self.database_url
-        if url.startswith("postgres://") or url.startswith("postgresql://"):
-            url = url.replace("postgres://", "postgresql://", 1).replace(
-                "postgresql://", "postgresql+asyncpg://", 1
-            )
-        # asyncpg doesn't accept sslmode= — replace with ssl=
-        url = url.replace("sslmode=require", "ssl=require").replace(
-            "sslmode=verify-full", "ssl=verify-full"
-        ).replace("sslmode=prefer", "ssl=require").replace(
-            "sslmode=disable", "ssl=disable"
-        )
-        self.database_url = url
-
-        sync = self.database_url_sync
-        if sync.startswith("postgresql+asyncpg://"):
-            sync = sync.replace("postgresql+asyncpg://", "postgresql://", 1)
-        # psycopg2 needs explicit driver; it keeps sslmode= as-is
-        if sync.startswith("postgresql://") or sync.startswith("postgres://"):
-            sync = sync.replace("postgres://", "postgresql://", 1).replace(
-                "postgresql://", "postgresql+psycopg2://", 1
-            )
-        self.database_url_sync = sync
+        self.database_url = _make_asyncpg_url(self.database_url)
+        self.database_url_sync = _make_psycopg2_url(self.database_url_sync)
         return self
 
     @property
