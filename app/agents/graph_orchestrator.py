@@ -491,4 +491,6 @@ class GraphOrchestratorAgent:
             "status": final_state.get("status", "completed"),
             "report_md": final_state.get("report_md", ""),
             "report_json": final_state.get("report_json", ""),
+            "findings": classified,
+            "files_reviewed": len(final_state.get("reviewable_files", [])),
         }
