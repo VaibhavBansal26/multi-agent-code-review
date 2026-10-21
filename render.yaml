@@ -1,14 +1,11 @@
 ## Render Blueprint — MACRV Multi-Agent Code Review
 ## Deploy: https://dashboard.render.com/blueprints → "New Blueprint Instance"
 ## Repo: https://github.com/VaibhavBansal26/multi-agent-code-review
-
-databases:
-  - name: macrv-db
-    plan: free          # change to "starter" if your free slot is taken
-    region: oregon
-    postgresMajorVersion: 16
-    databaseName: macrv
-    databaseUser: macrv
+##
+## DATABASE: Uses an external Postgres (Neon / Supabase / Railway).
+## After blueprint deploy, set DATABASE_URL and DATABASE_URL_SYNC in
+## the Render dashboard → macrv-api → Environment (and macrv-worker).
+## config.py auto-converts postgresql:// → postgresql+asyncpg:// for the API.
 
 services:
   # ── Redis (Celery broker + result backend) ─────────────────────────────────
@@ -33,16 +30,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
-      # Render gives postgresql:// — config.py auto-upgrades to +asyncpg for the API
-      # and derives DATABASE_URL_SYNC from it automatically.
       - key: DATABASE_URL
-        fromDatabase:
-          name: macrv-db
-          property: connectionString
+        sync: false   # paste your Neon/Supabase postgresql:// URL here
       - key: DATABASE_URL_SYNC
-        fromDatabase:
-          name: macrv-db
-          property: connectionString
+        sync: false   # same URL — config.py keeps the right scheme for each
       - key: CELERY_BROKER_URL
         fromService:
           name: macrv-redis
@@ -54,9 +45,9 @@ services:
           type: keyvalue
           property: connectionString
       - key: ANTHROPIC_API_KEY
-        sync: false     # set manually in Render dashboard → Environment
+        sync: false
       - key: GITHUB_WEBHOOK_SECRET
-        sync: false     # set manually in Render dashboard → Environment
+        sync: false
       - key: APP_ENV
         value: production
 
@@ -74,13 +65,9 @@ services:
       - key: PYTHON_VERSION
         value: "3.11"
       - key: DATABASE_URL
-        fromDatabase:
-          name: macrv-db
-          property: connectionString
+        sync: false
       - key: DATABASE_URL_SYNC
-        fromDatabase:
-          name: macrv-db
-          property: connectionString
+        sync: false
       - key: CELERY_BROKER_URL
         fromService:
           name: macrv-redis
