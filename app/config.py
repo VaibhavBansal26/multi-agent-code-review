@@ -60,16 +60,24 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _fix_db_schemes(self) -> "Settings":
-        # Render provides postgresql:// — coerce to the right driver scheme.
+        # Coerce scheme and fix SSL params for each driver.
         url = self.database_url
-        if url.startswith("postgresql://") or url.startswith("postgres://"):
-            self.database_url = url.replace("postgres://", "postgresql://", 1).replace(
+        if url.startswith("postgres://") or url.startswith("postgresql://"):
+            url = url.replace("postgres://", "postgresql://", 1).replace(
                 "postgresql://", "postgresql+asyncpg://", 1
             )
+        # asyncpg doesn't accept sslmode= — replace with ssl=
+        url = url.replace("sslmode=require", "ssl=require").replace(
+            "sslmode=verify-full", "ssl=verify-full"
+        ).replace("sslmode=prefer", "ssl=require").replace(
+            "sslmode=disable", "ssl=disable"
+        )
+        self.database_url = url
+
         sync = self.database_url_sync
         if sync.startswith("postgresql+asyncpg://"):
             sync = sync.replace("postgresql+asyncpg://", "postgresql://", 1)
-        # Ensure psycopg2 driver is explicit so SQLAlchemy 2.x doesn't try psycopg3
+        # psycopg2 needs explicit driver; it keeps sslmode= as-is
         if sync.startswith("postgresql://") or sync.startswith("postgres://"):
             sync = sync.replace("postgres://", "postgresql://", 1).replace(
                 "postgresql://", "postgresql+psycopg2://", 1
