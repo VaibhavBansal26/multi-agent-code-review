@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,6 +57,19 @@ class Settings(BaseSettings):
     orchestrator_model: str = Field(default="claude-opus-5-5")
     worker_model: str = Field(default="claude-sonnet-4-6")
     classifier_model: str = Field(default="claude-haiku-5-5")
+
+    @model_validator(mode="after")
+    def _fix_db_schemes(self) -> "Settings":
+        # Render provides postgresql:// — coerce to the right driver scheme.
+        url = self.database_url
+        if url.startswith("postgresql://") or url.startswith("postgres://"):
+            self.database_url = url.replace("postgres://", "postgresql://", 1).replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+        sync = self.database_url_sync
+        if sync.startswith("postgresql+asyncpg://"):
+            self.database_url_sync = sync.replace("postgresql+asyncpg://", "postgresql://", 1)
+        return self
 
     @property
     def is_production(self) -> bool:

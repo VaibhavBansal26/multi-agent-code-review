@@ -1,0 +1,99 @@
+## Render Blueprint — MACRV Multi-Agent Code Review
+## Deploy: https://dashboard.render.com/blueprints → "New Blueprint Instance"
+## Repo: https://github.com/VaibhavBansal26/multi-agent-code-review
+
+databases:
+  - name: macrv-db
+    plan: free          # change to "starter" if your free slot is taken
+    region: oregon
+    postgresMajorVersion: 16
+    databaseName: macrv
+    databaseUser: macrv
+
+services:
+  # ── Redis (Celery broker + result backend) ─────────────────────────────────
+  - type: keyvalue
+    name: macrv-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList: []   # private — only accessible within Render private network
+
+  # ── FastAPI web service ────────────────────────────────────────────────────
+  - type: web
+    name: macrv-api
+    runtime: python
+    region: oregon
+    plan: free
+    branch: claude/sweet-brown-bkbjnh
+    repo: https://github.com/VaibhavBansal26/multi-agent-code-review
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # Render gives postgresql:// — config.py auto-upgrades to +asyncpg for the API
+      # and derives DATABASE_URL_SYNC from it automatically.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: macrv-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: macrv-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: macrv-redis
+          type: keyvalue
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: macrv-redis
+          type: keyvalue
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false     # set manually in Render dashboard → Environment
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false     # set manually in Render dashboard → Environment
+      - key: APP_ENV
+        value: production
+
+  # ── Celery worker ──────────────────────────────────────────────────────────
+  - type: worker
+    name: macrv-worker
+    runtime: python
+    region: oregon
+    plan: free
+    branch: claude/sweet-brown-bkbjnh
+    repo: https://github.com/VaibhavBansal26/multi-agent-code-review
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.queue.celery_app worker --loglevel=info --concurrency=2
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: macrv-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: macrv-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: macrv-redis
+          type: keyvalue
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: macrv-redis
+          type: keyvalue
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: APP_ENV
+        value: production
