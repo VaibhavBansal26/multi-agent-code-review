@@ -201,7 +201,9 @@ async def list_repos(db: AsyncSession = Depends(get_db)) -> JSONResponse:
             func.count(PRReview.id).label("total"),
             func.sum(func.cast(PRReview.status == ReviewStatus.PENDING, Integer_)).label("pending"),
             func.sum(func.cast(PRReview.decision == ReviewDecision.APPROVED, Integer_)).label("approved"),
-            func.sum(func.cast(PRReview.decision == ReviewDecision.CHANGES_REQUESTED, Integer_)).label("changes_requested"),
+            func.sum(
+                func.cast(PRReview.decision == ReviewDecision.CHANGES_REQUESTED, Integer_)
+            ).label("changes_requested"),
         ).group_by(PRReview.repo_full_name)
     )).all()
     reviewed_map = {r.repo_full_name: r for r in reviewed}
@@ -218,9 +220,9 @@ async def list_repos(db: AsyncSession = Depends(get_db)) -> JSONResponse:
             {
                 "repo": name,
                 "total": int(reviewed_map[name].total) if name in reviewed_map else 0,
-                "pending": int((reviewed_map[name].pending or 0)) if name in reviewed_map else 0,
-                "approved": int((reviewed_map[name].approved or 0)) if name in reviewed_map else 0,
-                "changes_requested": int((reviewed_map[name].changes_requested or 0)) if name in reviewed_map else 0,
+                "pending": int(reviewed_map[name].pending or 0) if name in reviewed_map else 0,
+                "approved": int(reviewed_map[name].approved or 0) if name in reviewed_map else 0,
+                "changes_requested": int(reviewed_map[name].changes_requested or 0) if name in reviewed_map else 0,
             }
             for name in all_repos
         ]

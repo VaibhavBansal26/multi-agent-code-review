@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -13,7 +14,6 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
