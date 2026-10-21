@@ -1,9 +1,8 @@
 from functools import lru_cache
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse  # noqa: I001
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 _ASYNCPG_ALLOWED_PARAMS = {"ssl", "timeout", "statement_cache_size", "prepared_statement_cache_size"}
 
