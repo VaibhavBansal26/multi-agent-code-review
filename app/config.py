@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     celery_broker_url: str = Field(default="redis://localhost:6379/0")
     celery_result_backend: str = Field(default="redis://localhost:6379/1")
 
+    # Connected repos (comma-separated list of owner/repo to show in dashboard)
+    connected_repos: str = Field(default="")
+
     # Email
     sendgrid_api_key: str = Field(default="")
     email_from: str = Field(default="reviews@macrv.dev")

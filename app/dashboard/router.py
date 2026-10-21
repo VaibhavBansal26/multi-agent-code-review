@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.db.models import Finding, PRReview, ReviewDecision, ReviewStatus, Severity  # noqa: F401
 from app.db.session import get_db
 
@@ -61,11 +62,13 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> JSONResponse:
         select(func.count(Finding.id)).where(Finding.severity == Severity.CRITICAL)
     )).scalar_one()
 
-    # Connected repos = distinct repo names that have at least one review
-    repos_result = await db.execute(
-        select(PRReview.repo_full_name).distinct()
-    )
-    connected_repos = [r[0] for r in repos_result.fetchall()]
+    # Connected repos = distinct repos from DB + any configured via env var
+    repos_result = await db.execute(select(PRReview.repo_full_name).distinct())
+    db_repos = {r[0] for r in repos_result.fetchall()}
+    cfg_repos = {
+        r.strip() for r in get_settings().connected_repos.split(",") if r.strip()
+    }
+    connected_repos = sorted(db_repos | cfg_repos)
 
     return JSONResponse({
         "total_reviews": total_reviews,
