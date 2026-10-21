@@ -96,7 +96,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _fix_db_schemes(self) -> "Settings":
         self.database_url = _make_asyncpg_url(self.database_url)
-        self.database_url_sync = _make_psycopg2_url(self.database_url_sync)
+        # If database_url_sync was not explicitly set, derive it from database_url
+        _default_sync = "postgresql://macrv:macrv@localhost:5432/macrv"
+        if self.database_url_sync == _default_sync or not self.database_url_sync:
+            self.database_url_sync = _make_psycopg2_url(self.database_url)
+        else:
+            self.database_url_sync = _make_psycopg2_url(self.database_url_sync)
         return self
 
     @property
