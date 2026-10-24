@@ -60,10 +60,13 @@ Preserve all original fields exactly. Do not add commentary outside the JSON."""
                     "content": f"Classify and rank these findings:\n{json.dumps(raw_dicts, indent=2)}",
                 }],
                 system=self.SYSTEM_PROMPT,
-                max_tokens=4096,
+                max_tokens=8192,
             )
             raw = response.content[0].text.strip()
             classified = self._parse_json_array(raw)
+            if not classified and findings:
+                self.log.warning("classifier_fallback", reason="empty_parse", input_count=len(findings))
+                return sorted(findings, key=lambda f: _SEVERITY_ORDER.get(f.severity, 1))
             result = []
             seen = set()
             for item in classified:
