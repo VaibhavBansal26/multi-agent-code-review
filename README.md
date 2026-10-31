@@ -5,13 +5,15 @@ An automated code review pipeline powered by Claude agents. Reviews pull request
 ## Architecture
 
 ```
-GitHub PR → FastAPI Webhook → Redis/Celery → Orchestrator (Opus-5-5)
+GitHub PR → FastAPI Webhook → Redis/Celery → LangGraph Pipeline
                                                     ↓
-                                        File Review Workers (Sonnet-4-6) [parallel]
+                                        SAST Scan (Semgrep + Bandit + secret scan + pip-audit)
                                                     ↓
-                                        Security Scanner (Semgrep + truffleHog)
+                                        File Review Workers (Sonnet-4-6) [parallel, one per file]
                                                     ↓
                                         Classifier (Haiku-5-5)
+                                                    ↓ (if critical_count ≥ threshold)
+                                        Deep Security Scan — LLM adversarial pass (Opus-5-5)
                                                     ↓
                               ┌─────────────────────────────────────────┐
                               │ PR Comments  │ Approve/Block │ Email    │
@@ -30,9 +32,9 @@ GitHub PR → FastAPI Webhook → Redis/Celery → Orchestrator (Opus-5-5)
 ## Build Phases
 
 - [x] **Phase 1** — Skeleton: webhook, queue, DB models, Docker, tests
-- [ ] **Phase 2** — Agents: orchestrator, file workers, classifier
-- [ ] **Phase 3** — GitHub integration: inline comments, approve/block
-- [ ] **Phase 4** — Security scanner: Semgrep, truffleHog, dep audit
+- [x] **Phase 2** — Agents: orchestrator, file workers, classifier
+- [x] **Phase 3** — GitHub integration: inline comments, approve/block
+- [x] **Phase 4** — Security scanner: Semgrep, Bandit, secret detection, dep CVE audit (pip-audit/npm-audit)
 - [ ] **Phase 5** — Notifications: email, Slack, Jira/Linear
 - [ ] **Phase 6** — Reports + eval harness (Weave)
 

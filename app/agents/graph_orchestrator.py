@@ -48,8 +48,10 @@ class ReviewState(TypedDict):
     intent_summary: str
     convention_hints: str
     base_ref: str
+    dep_files: dict          # dependency files fetched for CVE audit
     all_findings: Annotated[list, operator.add]
     classified_findings: list
+    sast_done: bool          # True after sast_scan node completes
     security_scan_done: bool
     decision: str
     report_md: str
@@ -94,12 +96,75 @@ def fetch_pr(state: ReviewState) -> dict:
         "base_ref": base_ref,
         "intent_summary": intent_summary,
         "convention_hints": convention_hints,
+        "dep_files": {},
         "all_findings": [],
         "classified_findings": [],
+        "sast_done": False,
         "security_scan_done": False,
         "error": None,
         "status": "in_progress",
     }
+
+
+def sast_scan(state: ReviewState) -> dict:
+    """
+    Phase 4: run SAST tools (Semgrep, Bandit, secret scan, dep CVE audit) on
+    ALL reviewable files before the LLM fan-out, so static findings are already
+    in all_findings when the classifier runs.
+    """
+    if state.get("error"):
+        return {"all_findings": [], "sast_done": True, "dep_files": {}}
+
+    reviewable = state["reviewable_files"]
+    if not reviewable:
+        return {"all_findings": [], "sast_done": True, "dep_files": {}}
+
+    patches = {
+        f.get("filename", ""): f.get("patch", "")
+        for f in reviewable
+        if f.get("patch")
+    }
+
+    # Fetch dependency files for CVE audit
+    dep_files: dict[str, str] = {}
+    gh = GitHubClient()
+    for dep_file in ["requirements.txt", "package.json", "Pipfile", "pyproject.toml"]:
+        try:
+            content = gh.get_file_content(state["repo"], state.get("base_ref", "main"), dep_file)
+            if content:
+                dep_files[dep_file] = content
+        except Exception:
+            pass
+
+    try:
+        scanner = SecurityScannerAgent()
+        result = scanner.scan(
+            repo_full_name=state["repo"],
+            pr_number=state["pr_number"],
+            head_sha=state["head_sha"],
+            files=[f.get("filename", "") for f in reviewable],
+            patches=patches,
+            dep_files=dep_files or None,
+            mode="sast",
+        )
+        raw = result.get("findings", [])
+        findings = [
+            FileFinding(
+                title=f["title"],
+                body=f["body"],
+                file_path=f["file_path"],
+                line_start=f.get("line_start"),
+                severity=f["severity"],
+                source=f.get("source", "sast"),
+            )
+            for f in raw
+            if isinstance(f, dict)
+        ]
+        log.info("graph_sast_done", findings=len(findings), dep_files=list(dep_files.keys()))
+        return {"all_findings": findings, "sast_done": True, "dep_files": dep_files}
+    except Exception as exc:
+        log.error("graph_sast_failed", error=str(exc))
+        return {"all_findings": [], "sast_done": True, "dep_files": dep_files}
 
 
 def fan_out_review(state: ReviewState) -> dict:
@@ -181,12 +246,15 @@ def deep_security_scan(state: ReviewState) -> dict:
     try:
         scanner = SecurityScannerAgent()
         patches = {f.get("filename", ""): f.get("patch", "") for f in critical_file_infos}
+        # SAST tools already ran in sast_scan node — use LLM-only mode here to
+        # avoid duplicating static findings and focus on logic-level issues.
         scan_result = scanner.scan(
             repo_full_name=state["repo"],
             pr_number=state["pr_number"],
             head_sha=state["head_sha"],
             files=[f.get("filename", "") for f in critical_file_infos],
             patches=patches,
+            mode="llm",
         )
         raw = scan_result.get("findings", [])
         new_findings = [
@@ -392,6 +460,7 @@ def build_review_graph():
     workflow = StateGraph(ReviewState)
 
     workflow.add_node("fetch_pr", fetch_pr)
+    workflow.add_node("sast_scan", sast_scan)
     workflow.add_node("fan_out_review", fan_out_review)
     workflow.add_node("classify", classify)
     workflow.add_node("deep_security_scan", deep_security_scan)
@@ -399,7 +468,8 @@ def build_review_graph():
     workflow.add_node("notify", notify)
 
     workflow.set_entry_point("fetch_pr")
-    workflow.add_edge("fetch_pr", "fan_out_review")
+    workflow.add_edge("fetch_pr", "sast_scan")
+    workflow.add_edge("sast_scan", "fan_out_review")
     workflow.add_edge("fan_out_review", "classify")
     workflow.add_conditional_edges("classify", should_deep_scan, {
         "deep_security_scan": "deep_security_scan",
@@ -448,8 +518,10 @@ class GraphOrchestratorAgent:
             "intent_summary": "",
             "convention_hints": "",
             "base_ref": "main",
+            "dep_files": {},
             "all_findings": [],
             "classified_findings": [],
+            "sast_done": False,
             "security_scan_done": False,
             "decision": "COMMENT",
             "report_md": "",
