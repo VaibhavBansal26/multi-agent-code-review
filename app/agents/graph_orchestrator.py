@@ -320,7 +320,7 @@ def post_review(state: ReviewState) -> dict:
                     commit_id=state["head_sha"],
                     body=_build_review_body(critical, suggestive, optimisation, report_md),
                     event="COMMENT",
-                    comments=None,
+                    comments=inline_comments or None,
                 )
             except Exception as exc2:
                 log.error("graph_post_review_failed", error=str(exc2))
