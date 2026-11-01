@@ -5,7 +5,16 @@ from fastapi import HTTPException, Request, status
 
 
 async def verify_github_signature(request: Request, secret: str) -> bytes:
-    """Verify the X-Hub-Signature-256 header from GitHub."""
+    """Verify the X-Hub-Signature-256 header from GitHub.
+
+    When no secret is configured, signature validation is skipped so the
+    webhook works during local dev and demos without a shared secret.
+    """
+    body = await request.body()
+
+    if not secret:
+        return body
+
     signature_header = request.headers.get("X-Hub-Signature-256", "")
     if not signature_header:
         raise HTTPException(
@@ -13,7 +22,6 @@ async def verify_github_signature(request: Request, secret: str) -> bytes:
             detail="Missing X-Hub-Signature-256 header",
         )
 
-    body = await request.body()
     expected = "sha256=" + hmac.new(
         secret.encode(), body, hashlib.sha256
     ).hexdigest()
