@@ -25,12 +25,12 @@ _SECRET_PATTERNS: list[tuple[str, str]] = [
     # Generic key/password/secret assignments
     (
         r'(?i)(api[_-]?key|secret[_-]?key|access[_-]?key|private[_-]?key|auth[_-]?token'
-        r'|password|passwd|pwd|secret)\s*[=:]\s*["\']([^"\']{8,})["\']',
+        r'|password|passwd|pwd|secret)\s*[=:]\s*["\']([ -~]{8,})["\']',
         "Potential hardcoded secret",
     ),
     # AWS
     (r'AKIA[0-9A-Z]{16}', "AWS Access Key ID"),
-    (r'(?i)aws[_\-\s]?secret[_\-\s]?access[_\-\s]?key\s*[=:]\s*["\']([^"\']{20,})["\']', "AWS Secret Access Key"),
+    (r'(?i)aws[_\-\s]?secret[_\-\s]?access[_\-\s]?key\s*[=:]\s*["\']([ -~]{20,})["\']', "AWS Secret Access Key"),
     # GitHub
     (r'gh[pousr]_[A-Za-z0-9]{36}', "GitHub Personal Access Token"),
     (r'github_pat_[A-Za-z0-9_]{82}', "GitHub Fine-grained PAT"),
@@ -137,6 +137,11 @@ class SecurityScannerAgent(BaseAgent):
         return findings
 
     def _run_semgrep(self, path: str) -> list[FileFinding]:
+        # semgrep --config=auto downloads rules at runtime and uses 400-500 MB.
+        # Skip it unless explicitly enabled to avoid OOM on memory-constrained hosts.
+        if os.environ.get("SEMGREP_ENABLED", "false").lower() != "true":
+            log.info("semgrep_skipped", reason="SEMGREP_ENABLED not set")
+            return []
         try:
             result = subprocess.run(
                 ["semgrep", "--config=auto", "--json", "--quiet", path],
