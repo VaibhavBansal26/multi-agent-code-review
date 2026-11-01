@@ -152,3 +152,91 @@ class TestEvalHarness:
         assert c.expected_decision == "COMMENT"
         assert c.tags == []
         assert c.expected_findings == []
+
+    def test_weave_log_noop_when_not_configured(self):
+        """_log_to_weave should silently do nothing when Weave is not initialised."""
+        harness = _make_harness()
+        harness._weave = None
+        result = EvalResult(
+            case_id="x", decision_correct=True,
+            precision=1.0, recall=1.0, f1=1.0,
+            latency_ms=100.0, actual_findings=[], expected_findings=[],
+        )
+        harness._log_to_weave(_make_case(), result)  # must not raise
+
+
+# ── Fixtures ─────────────────────────────────────────────────────────────────
+
+class TestFixtures:
+    def test_built_in_cases_present(self):
+        from app.evals.fixtures import BUILT_IN_CASES
+        assert len(BUILT_IN_CASES) >= 4
+
+    def test_all_cases_have_required_fields(self):
+        from app.evals.fixtures import BUILT_IN_CASES
+        for c in BUILT_IN_CASES:
+            assert c.id
+            assert c.diff
+            assert c.expected_decision in ("COMMENT", "REQUEST_CHANGES")
+
+    def test_get_case_by_id(self):
+        from app.evals.fixtures import get_case_by_id
+        c = get_case_by_id("sql-injection-001")
+        assert c is not None
+        assert c.expected_decision == "REQUEST_CHANGES"
+
+    def test_get_case_by_id_missing(self):
+        from app.evals.fixtures import get_case_by_id
+        assert get_case_by_id("does-not-exist") is None
+
+    def test_get_cases_by_tag(self):
+        from app.evals.fixtures import get_cases_by_tag
+        critical = get_cases_by_tag("critical")
+        assert len(critical) >= 3
+        for c in critical:
+            assert "critical" in c.tags
+
+    def test_clean_case_expects_no_findings(self):
+        from app.evals.fixtures import get_case_by_id
+        c = get_case_by_id("clean-001")
+        assert c is not None
+        assert c.expected_findings == []
+        assert c.expected_decision == "COMMENT"
+
+
+# ── Eval API endpoint ─────────────────────────────────────────────────────────
+
+class TestEvalApi:
+    def test_run_evals_all_cases(self, client):
+        from app.agents.file_reviewer import FileFinding, FileReviewResult
+
+        # All cases return no findings → COMMENT decision
+        empty_result = FileReviewResult(file_path="PR", findings=[])
+        with patch("app.agents.file_reviewer.FileReviewAgent.review") as mock_review:
+            mock_review.return_value = empty_result
+            resp = client.post("/dashboard/api/evals/run", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_cases" in data
+        assert "avg_f1" in data
+        assert data["total_cases"] >= 4
+
+    def test_run_evals_specific_case_ids(self, client):
+        from app.agents.file_reviewer import FileFinding, FileReviewResult
+        empty_result = FileReviewResult(file_path="PR", findings=[])
+        with patch("app.agents.file_reviewer.FileReviewAgent.review") as mock_review:
+            mock_review.return_value = empty_result
+            resp = client.post(
+                "/dashboard/api/evals/run",
+                json={"case_ids": ["sql-injection-001", "clean-001"]},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_cases"] == 2
+
+    def test_run_evals_unknown_case_ids(self, client):
+        resp = client.post(
+            "/dashboard/api/evals/run",
+            json={"case_ids": ["nonexistent-case"]},
+        )
+        assert resp.status_code == 400

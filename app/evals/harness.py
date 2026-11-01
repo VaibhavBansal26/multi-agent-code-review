@@ -57,10 +57,14 @@ class EvalHarness:
                 from app.config import get_settings
                 settings = get_settings()
                 weave.init(settings.weave_project)
+                self._weave = weave
                 log.info("weave_initialized", project=settings.weave_project)
             except ImportError:
                 log.warning("weave_not_installed")
                 self.use_weave = False
+                self._weave = None
+        else:
+            self._weave = None
 
         if self.use_langsmith:
             try:
@@ -178,8 +182,35 @@ class EvalHarness:
         return precision, recall, f1
 
     def _log_to_weave(self, case: EvalCase, result: EvalResult) -> None:
+        """Log eval result to Weave as a traced call with inputs + outputs."""
+        weave = self._weave
+        if weave is None:
+            return
         try:
-            # weave.log is version-dependent; use the call API when available
-            pass  # actual logging done by @weave.op decorator in production
+            # Wrap the scoring as a @weave.op so inputs/outputs appear in the
+            # Weave dashboard under the project's Evaluations tab.
+            @weave.op()
+            def _record_eval(
+                case_id: str,
+                repo: str,
+                expected_decision: str,
+                expected_findings: list,
+            ) -> dict:
+                return {
+                    "decision_correct": result.decision_correct,
+                    "precision": round(result.precision, 4),
+                    "recall": round(result.recall, 4),
+                    "f1": round(result.f1, 4),
+                    "latency_ms": round(result.latency_ms),
+                    "actual_findings": result.actual_findings,
+                }
+
+            _record_eval(
+                case_id=case.id,
+                repo=case.repo,
+                expected_decision=case.expected_decision,
+                expected_findings=case.expected_findings,
+            )
+            log.info("weave_logged", case=case.id, f1=round(result.f1, 3))
         except Exception as exc:
             log.warning("weave_log_failed", error=str(exc))

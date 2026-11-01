@@ -36,7 +36,7 @@ GitHub PR → FastAPI Webhook → Redis/Celery → LangGraph Pipeline
 - [x] **Phase 3** — GitHub integration: inline comments, approve/block
 - [x] **Phase 4** — Security scanner: Semgrep, Bandit, secret detection, dep CVE audit (pip-audit/npm-audit)
 - [x] **Phase 5** — Notifications: email (SendGrid), Slack webhook, Jira/Linear ticket per critical finding
-- [ ] **Phase 6** — Reports + eval harness (Weave)
+- [x] **Phase 6** — Reports + eval harness: report persistence, `GET /report`, `POST /evals/run`, built-in fixtures, Weave tracing
 
 ## Quick Start
 
@@ -83,6 +83,22 @@ See `.env.example` for all available settings.
 | `SLACK_WEBHOOK_URL` | Optional — Slack review summary (Phase 5) |
 | `JIRA_URL` + `JIRA_EMAIL` + `JIRA_TOKEN` | Optional — Jira ticket per critical finding (Phase 5) |
 | `LINEAR_API_KEY` + `LINEAR_TEAM_ID` | Optional — Linear ticket per critical finding (Phase 5) |
+
+## API Endpoints (Phase 6)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/dashboard/api/reviews/{id}/report` | Markdown or JSON report for a completed review |
+| `POST` | `/dashboard/api/evals/run` | Run built-in eval fixtures; returns precision/recall/F1 |
+
+`POST /api/evals/run` accepts an optional JSON body:
+```json
+{
+  "case_ids": ["sql-injection-001", "clean-001"],
+  "use_weave": true
+}
+```
+Omit `case_ids` to run all 6 built-in cases. Set `use_weave: true` to log traces to your Weave project.
 
 ## Integrating with Your Codebase
 

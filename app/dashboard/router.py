@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.db.models import ConnectedRepo, Finding, PRReview, ReviewDecision, ReviewStatus, Severity  # noqa: F401
+from app.db.models import ConnectedRepo, Finding, PRReview, ReviewDecision, ReviewReport, ReviewStatus, Severity  # noqa: F401
 from app.db.session import get_db
 
 log = structlog.get_logger(__name__)
@@ -126,6 +126,66 @@ async def get_review(review_id: int, db: AsyncSession = Depends(get_db)) -> JSON
     if not row:
         raise HTTPException(status_code=404, detail="Review not found")
     return JSONResponse(_review_to_dict(row, include_findings=True))
+
+
+# ---------------------------------------------------------------------------
+# Reports (Phase 6)
+# ---------------------------------------------------------------------------
+
+@router.get("/api/reviews/{review_id}/report")
+async def get_review_report(
+    review_id: int,
+    fmt: str = "json",
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Return the Markdown or JSON report for a completed review."""
+    report = (await db.execute(
+        select(ReviewReport).where(ReviewReport.review_id == review_id)
+    )).scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found for this review")
+    if fmt == "markdown":
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(report.markdown, media_type="text/markdown")
+    import json as _json
+    return JSONResponse({
+        "review_id": review_id,
+        "markdown": report.markdown,
+        "data": _json.loads(report.json_data),
+        "created_at": report.created_at.isoformat(),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Evals (Phase 6)
+# ---------------------------------------------------------------------------
+
+@router.post("/api/evals/run", status_code=status.HTTP_200_OK)
+async def run_evals(body: dict | None = None) -> JSONResponse:
+    """
+    Run the built-in eval fixture suite and return aggregated metrics.
+
+    Optional body: {"case_ids": ["sql-injection-001", ...], "use_weave": false}
+    Omit case_ids to run all built-in cases.
+    """
+    from app.evals.fixtures import BUILT_IN_CASES, get_case_by_id
+    from app.evals.harness import EvalHarness
+
+    body = body or {}
+    use_weave: bool = bool(body.get("use_weave", False))
+    case_ids: list[str] | None = body.get("case_ids")
+
+    if case_ids:
+        cases = [c for cid in case_ids if (c := get_case_by_id(cid)) is not None]
+        if not cases:
+            raise HTTPException(status_code=400, detail="No matching cases found")
+    else:
+        cases = list(BUILT_IN_CASES)
+
+    harness = EvalHarness(use_weave=use_weave)
+    summary = harness.run_suite(cases)
+    log.info("eval_run_via_api", total=summary["total_cases"], f1=summary["avg_f1"])
+    return JSONResponse(summary)
 
 
 # ---------------------------------------------------------------------------

@@ -148,6 +148,22 @@ def run_pr_review(
         row.status = ReviewStatus.COMPLETED if result.get("status") != "failed" else ReviewStatus.FAILED
         row.decision = ReviewDecision(decision_value)
         row.files_reviewed = result.get("files_reviewed", 0)
+
+        # Persist report (Phase 6)
+        if result.get("report_md"):
+            import json as _json
+            from app.db.models import ReviewReport
+            existing_report = session.query(ReviewReport).filter_by(review_id=review_id).first()
+            if existing_report:
+                existing_report.markdown = result["report_md"]
+                existing_report.json_data = _json.dumps(result.get("report_json", {}))
+            else:
+                session.add(ReviewReport(
+                    review_id=review_id,
+                    markdown=result["report_md"],
+                    json_data=_json.dumps(result.get("report_json", {})),
+                ))
+
         session.commit()
 
         log.info(
