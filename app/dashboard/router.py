@@ -189,6 +189,87 @@ async def run_evals(body: dict | None = None) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
+# Integrations (Phase 7)
+# ---------------------------------------------------------------------------
+
+@router.get("/api/integrations")
+async def get_integrations() -> JSONResponse:
+    """Return integration configuration status (credentials presence only — no values)."""
+    s = get_settings()
+    return JSONResponse({
+        "integrations": [
+            {
+                "id": "email",
+                "name": "Email (SendGrid)",
+                "configured": bool(s.sendgrid_api_key),
+                "env_vars": ["SENDGRID_API_KEY", "EMAIL_FROM"],
+                "description": "Sends critical finding alerts to PR authors",
+            },
+            {
+                "id": "slack",
+                "name": "Slack Webhook",
+                "configured": bool(s.slack_webhook_url),
+                "env_vars": ["SLACK_WEBHOOK_URL"],
+                "description": "Posts review summaries to a Slack channel",
+            },
+            {
+                "id": "jira",
+                "name": "Jira",
+                "configured": bool(s.jira_url and s.jira_email and s.jira_token),
+                "env_vars": ["JIRA_URL", "JIRA_EMAIL", "JIRA_TOKEN", "JIRA_PROJECT_KEY"],
+                "description": "Creates a ticket for each critical finding",
+            },
+            {
+                "id": "linear",
+                "name": "Linear",
+                "configured": bool(s.linear_api_key and s.linear_team_id),
+                "env_vars": ["LINEAR_API_KEY", "LINEAR_TEAM_ID"],
+                "description": "Creates an issue for each critical finding",
+            },
+            {
+                "id": "weave",
+                "name": "Weights & Biases Weave",
+                "configured": bool(s.wandb_api_key),
+                "env_vars": ["WANDB_API_KEY", "WEAVE_PROJECT"],
+                "description": "Traces eval runs in the Weave dashboard",
+            },
+        ]
+    })
+
+
+@router.post("/api/integrations/test")
+async def test_integration(body: dict) -> JSONResponse:
+    """Send a test message for a configured integration channel."""
+    channel = (body or {}).get("channel", "")
+    s = get_settings()
+
+    if channel == "slack":
+        from app.integrations.slack_client import send_review_notification
+        try:
+            ok = send_review_notification(
+                repo="test/repo",
+                pr_number=0,
+                pr_title="MACRV integration test",
+                author="macrv-bot",
+                decision="COMMENT",
+                critical=0,
+                suggestive=0,
+                optimisation=0,
+                pr_url="https://github.com",
+            )
+        except Exception:
+            ok = False
+        return JSONResponse({"ok": bool(ok)})
+
+    if channel == "email":
+        if not s.sendgrid_api_key:
+            return JSONResponse({"ok": False, "error": "not configured"})
+        return JSONResponse({"ok": True, "message": "not sent in test mode"})
+
+    raise HTTPException(status_code=400, detail=f"Unknown channel: {channel!r}")
+
+
+# ---------------------------------------------------------------------------
 # Actions
 # ---------------------------------------------------------------------------
 

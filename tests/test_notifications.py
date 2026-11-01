@@ -356,3 +356,30 @@ class TestNotificationDispatcher:
         assert "email" in r.summary()
         assert "slack" in r.summary()
         assert "tickets(LIN-1)" in r.summary()
+
+
+# ── Integrations API endpoint ─────────────────────────────────────────────────
+
+class TestIntegrationsApi:
+    def test_integrations_list_returns_five_ids(self, client):
+        resp = client.get("/dashboard/api/integrations")
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = {i["id"] for i in data["integrations"]}
+        assert ids == {"email", "slack", "jira", "linear", "weave"}
+
+    def test_integrations_all_unconfigured_by_default(self, client):
+        resp = client.get("/dashboard/api/integrations")
+        assert resp.status_code == 200
+        for integration in resp.json()["integrations"]:
+            assert integration["configured"] is False
+
+    def test_integration_test_unknown_channel(self, client):
+        resp = client.post("/dashboard/api/integrations/test", json={"channel": "unknown"})
+        assert resp.status_code == 400
+
+    def test_integration_test_email_not_configured(self, client):
+        resp = client.post("/dashboard/api/integrations/test", json={"channel": "email"})
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is False
+        assert "not configured" in resp.json()["error"]

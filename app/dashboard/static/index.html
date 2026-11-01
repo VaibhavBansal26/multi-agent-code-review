@@ -2,307 +2,1179 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>MACRV Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <style>
+    /* ── Design tokens ─────────────────────────────────────────── */
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface2: #21262d;
-      --border: #30363d;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --green: #238636;
-      --green-text: #3fb950;
-      --red: #da3633;
-      --red-text: #f85149;
-      --yellow: #9e6a03;
-      --yellow-text: #d29922;
-      --blue: #1f6feb;
-      --blue-text: #388bfd;
-      --purple-text: #bc8cff;
+      --bg:          #0a0e17;
+      --bg2:         #0d1220;
+      --surface:     #111827;
+      --surface2:    #1c2433;
+      --surface3:    #243044;
+      --border:      #1e2d44;
+      --border2:     #2a3f5e;
+      --text:        #e2e8f0;
+      --text-muted:  #64748b;
+      --text-soft:   #94a3b8;
+      --accent:      #3b82f6;
+      --accent-glow: rgba(59,130,246,.25);
+      --accent-2:    #6366f1;
+      --green:       #10b981;
+      --green-bg:    rgba(16,185,129,.12);
+      --red:         #ef4444;
+      --red-bg:      rgba(239,68,68,.12);
+      --yellow:      #f59e0b;
+      --yellow-bg:   rgba(245,158,11,.12);
+      --purple:      #a78bfa;
+      --purple-bg:   rgba(167,139,250,.12);
+      --sidebar-w:   220px;
+      --header-h:    56px;
+      color-scheme: dark;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
-    a { color: var(--blue-text); text-decoration: none; }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg: #f0f4f8; --bg2: #e8eef5;
+        --surface: #ffffff; --surface2: #f1f5f9; --surface3: #e2e8f0;
+        --border: #cbd5e1; --border2: #94a3b8;
+        --text: #0f172a; --text-muted: #64748b; --text-soft: #475569;
+        --accent-glow: rgba(59,130,246,.15);
+        color-scheme: light;
+      }
+    }
+    :root[data-theme="light"] {
+      --bg: #f0f4f8; --bg2: #e8eef5;
+      --surface: #ffffff; --surface2: #f1f5f9; --surface3: #e2e8f0;
+      --border: #cbd5e1; --border2: #94a3b8;
+      --text: #0f172a; --text-muted: #64748b; --text-soft: #475569;
+      --accent-glow: rgba(59,130,246,.15);
+      color-scheme: light;
+    }
+
+    /* ── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding-left: max(0px, env(safe-area-inset-left, 0px));
+      padding-right: max(0px, env(safe-area-inset-right, 0px));
+    }
+    a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
+    button { font-family: inherit; cursor: pointer; }
 
-    /* Layout */
-    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 16px; font-weight: 600; }
-    header .subtitle { color: var(--text-muted); font-size: 12px; }
-    .refresh-btn { margin-left: auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-    .refresh-btn:hover { background: var(--border); }
+    /* ── Top header ────────────────────────────────────────────── */
+    #top-header {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 20px;
+      gap: 14px;
+      z-index: 50;
+      backdrop-filter: blur(8px);
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-mark svg { width: 16px; height: 16px; }
+    .brand { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+    .brand span { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+    .header-spacer { flex: 1; }
+    .header-pill {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; color: var(--text-soft);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pulse-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .header-actions { display: flex; gap: 8px; }
+    .hbtn {
+      background: none; border: 1px solid var(--border);
+      color: var(--text-soft); padding: 5px 12px;
+      border-radius: 7px; font-size: 12px;
+      transition: background .15s, color .15s;
+    }
+    .hbtn:hover { background: var(--surface2); color: var(--text); }
+    .hbtn-primary {
+      background: var(--accent); border-color: var(--accent);
+      color: #fff;
+    }
+    .hbtn-primary:hover { background: #2563eb; }
 
-    main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+    /* ── App shell ──────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      margin-top: var(--header-h);
+      flex: 1;
+      min-height: 0;
+    }
 
-    /* Tabs */
-    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-    .tab { padding: 8px 16px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; font-size: 13px; }
-    .tab.active { color: var(--text); border-bottom-color: var(--blue-text); }
-    .tab:hover { color: var(--text); }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: var(--header-h); bottom: 0; left: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px 10px;
+      z-index: 40;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .nav-section-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--text-muted);
+      padding: 10px 10px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px;
+      color: var(--text-soft); font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; background: none; width: 100%;
+      text-align: left; transition: background .12s, color .12s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid rgba(59,130,246,.25);
+    }
+    .nav-item .nav-icon { width: 16px; height: 16px; opacity: .7; flex-shrink: 0; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-badge {
+      margin-left: auto; background: var(--red-bg);
+      color: var(--red); font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+    }
+    .sidebar-footer {
+      margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border);
+    }
+    .sidebar-version { font-size: 10px; color: var(--text-muted); padding: 6px 10px; }
 
-    /* Stat cards */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-    .stat-card .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-    .stat-card .value { font-size: 28px; font-weight: 700; }
-    .stat-card .value.green { color: var(--green-text); }
-    .stat-card .value.red { color: var(--red-text); }
-    .stat-card .value.yellow { color: var(--yellow-text); }
-    .stat-card .value.blue { color: var(--blue-text); }
+    /* ── Main content ────────────────────────────────────────────── */
+    #main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      min-width: 0;
+    }
 
-    /* Table */
-    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .table-toolbar { padding: 12px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); }
-    .table-toolbar select, .table-toolbar input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 13px; }
+    /* ── Page header ─────────────────────────────────────────────── */
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .page-desc { color: var(--text-muted); font-size: 13px; }
+
+    /* ── Stat cards ──────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 16px;
+      position: relative; overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .stat-card:hover { border-color: var(--border2); box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .stat-card.blue::before  { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .stat-card.green::before { background: linear-gradient(90deg, var(--green), #34d399); }
+    .stat-card.red::before   { background: linear-gradient(90deg, var(--red), #f97316); }
+    .stat-card.yellow::before{ background: linear-gradient(90deg, var(--yellow), #fcd34d); }
+    .stat-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; margin-bottom: 12px;
+    }
+    .stat-icon.blue   { background: rgba(59,130,246,.15); }
+    .stat-icon.green  { background: var(--green-bg); }
+    .stat-icon.red    { background: var(--red-bg); }
+    .stat-icon.yellow { background: var(--yellow-bg); }
+    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 6px; }
+    .stat-value { font-size: 30px; font-weight: 700; line-height: 1; }
+    .stat-value.blue   { color: var(--accent); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.red    { color: var(--red); }
+    .stat-value.yellow { color: var(--yellow); }
+
+    /* ── Section title ────────────────────────────────────────────── */
+    .section-title {
+      font-size: 13px; font-weight: 600; color: var(--text-soft);
+      text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Cards / surfaces ──────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title { font-size: 13px; font-weight: 600; }
+    .card-actions { margin-left: auto; display: flex; gap: 6px; }
+
+    /* ── Table ──────────────────────────────────────────────────────── */
+    .toolbar { padding: 12px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .toolbar select, .toolbar input {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 10px; border-radius: 7px; font-size: 13px;
+      font-family: inherit;
+    }
+    .toolbar select:focus, .toolbar input:focus { outline: none; border-color: var(--accent); }
     table { width: 100%; border-collapse: collapse; }
-    th { padding: 10px 16px; text-align: left; font-size: 12px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); }
-    td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--surface2); }
+    tbody tr:hover td { background: var(--surface2); }
 
-    /* Badges */
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-critical { background: #3d1a1a; color: var(--red-text); }
-    .badge-suggestive { background: #2d2408; color: var(--yellow-text); }
-    .badge-optimisation { background: #0d1f36; color: var(--blue-text); }
-    .badge-approved { background: #0f2a1c; color: var(--green-text); }
-    .badge-changes { background: #3d1a1a; color: var(--red-text); }
-    .badge-commented { background: #1c1f2e; color: var(--purple-text); }
-    .badge-pending { background: var(--surface2); color: var(--text-muted); }
-    .badge-in_progress { background: #0d1f36; color: var(--blue-text); }
-    .badge-completed { background: #0f2a1c; color: var(--green-text); }
-    .badge-failed { background: #3d1a1a; color: var(--red-text); }
+    /* ── Badges ──────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .badge-critical    { background: var(--red-bg);    color: var(--red);    } .badge-critical::before    { background: var(--red); }
+    .badge-suggestive  { background: var(--yellow-bg); color: var(--yellow); } .badge-suggestive::before  { background: var(--yellow); }
+    .badge-optimisation{ background: rgba(59,130,246,.15); color: var(--accent); } .badge-optimisation::before{ background: var(--accent); }
+    .badge-approved    { background: var(--green-bg);  color: var(--green);  } .badge-approved::before    { background: var(--green); }
+    .badge-changes     { background: var(--red-bg);    color: var(--red);    } .badge-changes::before     { background: var(--red); }
+    .badge-commented   { background: var(--purple-bg); color: var(--purple); } .badge-commented::before   { background: var(--purple); }
+    .badge-pending     { background: var(--surface2);  color: var(--text-muted); } .badge-pending::before { background: var(--text-muted); }
+    .badge-in_progress { background: rgba(59,130,246,.15); color: var(--accent); } .badge-in_progress::before { background: var(--accent); animation: pulse 1.5s infinite; }
+    .badge-completed   { background: var(--green-bg);  color: var(--green);  } .badge-completed::before   { background: var(--green); }
+    .badge-failed      { background: var(--red-bg);    color: var(--red);    } .badge-failed::before      { background: var(--red); }
 
-    /* Action buttons */
-    .btn { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
-    .btn:hover { background: var(--border); }
-    .btn-danger { border-color: var(--red); color: var(--red-text); }
-    .btn-danger:hover { background: #3d1a1a; }
-    .btn-primary { border-color: var(--blue); color: var(--blue-text); }
-    .btn-primary:hover { background: #1c2a3e; }
+    /* ── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface2); color: var(--text-soft);
+      transition: background .12s, color .12s, border-color .12s;
+      font-family: inherit; cursor: pointer;
+    }
+    .btn:hover { background: var(--surface3); color: var(--text); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-danger { border-color: var(--red); color: var(--red); }
+    .btn-danger:hover { background: var(--red-bg); }
+    .btn-success { border-color: var(--green); color: var(--green); }
+    .btn-success:hover { background: var(--green-bg); }
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
 
-    /* Modal */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-width: 420px; max-width: 600px; width: 90%; }
-    .modal h2 { font-size: 15px; margin-bottom: 16px; }
-    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-    .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 6px; font-size: 13px; }
+    /* ── Repos grid ──────────────────────────────────────────────────── */
+    .repos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .repo-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .repo-card:hover { border-color: var(--border2); box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+    .repo-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+    .repo-card-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .repo-card h3 { font-size: 14px; font-weight: 600; color: var(--accent); word-break: break-all; }
+    .repo-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-muted); }
+    .repo-card-meta span b { color: var(--text); }
+    .repo-card-bar { margin-top: 12px; height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+    .repo-card-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--accent)); transition: width .4s; }
 
-    /* Finding drawer */
-    .drawer { display: none; position: fixed; right: 0; top: 0; bottom: 0; width: 480px; background: var(--surface); border-left: 1px solid var(--border); z-index: 90; overflow-y: auto; padding: 20px; }
-    .drawer.open { display: block; }
-    .drawer-header { display: flex; align-items: center; margin-bottom: 16px; gap: 8px; }
-    .drawer-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; margin-left: auto; }
-    .finding-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
-    .finding-item .finding-title { font-weight: 600; margin-bottom: 4px; }
-    .finding-item .finding-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
-    .finding-item .finding-body { font-size: 13px; line-height: 1.5; }
+    /* ── Empty / error states ─────────────────────────────────────────── */
+    .empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .empty .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty p { max-width: 320px; margin: 0 auto; line-height: 1.6; }
 
-    /* Repos grid */
-    .repos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-    .repo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-    .repo-card h3 { font-size: 14px; font-weight: 600; color: var(--blue-text); margin-bottom: 10px; word-break: break-all; }
-    .repo-meta { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
-    .repo-meta span b { color: var(--text); }
-
-    /* Empty state */
-    .empty { text-align: center; padding: 48px; color: var(--text-muted); }
-    .empty .icon { font-size: 32px; margin-bottom: 10px; }
-
-    /* Spinner */
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue-text); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    /* ── Spinner ─────────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Toast */
-    #toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; pointer-events: none; }
-    #toast.show { opacity: 1; }
+    /* ── Modal ───────────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.65); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 14px; padding: 28px;
+      width: min(520px, 92vw);
+      box-shadow: 0 24px 48px rgba(0,0,0,.4);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .modal-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-soft); margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+    .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-    @media (max-width: 600px) {
-      main { padding: 12px; }
+    /* ── Findings drawer ─────────────────────────────────────────────── */
+    .drawer {
+      display: none; position: fixed; right: 0; top: var(--header-h); bottom: 0;
+      width: 480px; background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 80; overflow-y: auto; padding: 20px;
+      box-shadow: -8px 0 24px rgba(0,0,0,.2);
+    }
+    .drawer.open { display: block; }
+    .drawer-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .drawer-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; margin-left: auto; }
+    .drawer-close:hover { color: var(--text); }
+    .finding-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; margin-bottom: 10px;
+    }
+    .finding-item .finding-title { font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .finding-item .finding-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+    .finding-item .finding-body { font-size: 13px; line-height: 1.6; color: var(--text-soft); }
+
+    /* ── Toast ───────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 10px; padding: 10px 18px; font-size: 13px;
+      z-index: 200; opacity: 0; transform: translateY(8px);
+      transition: opacity .25s, transform .25s; pointer-events: none;
+      max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Integration cards ───────────────────────────────────────────── */
+    .integrations-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .int-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      transition: border-color .2s;
+    }
+    .int-card:hover { border-color: var(--border2); }
+    .int-card-header {
+      padding: 16px 18px; display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .int-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .int-info { flex: 1; min-width: 0; }
+    .int-name { font-size: 14px; font-weight: 600; }
+    .int-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .int-status {
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    }
+    .int-status.configured { background: var(--green-bg); color: var(--green); }
+    .int-status.not-configured { background: var(--surface2); color: var(--text-muted); }
+    .int-body { padding: 16px 18px; }
+    .env-vars { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .env-var {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 5px; padding: 2px 8px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; color: var(--text-soft);
+    }
+    .env-var.set { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .int-actions { display: flex; gap: 8px; }
+
+    /* ── Setup guide ─────────────────────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 20px; position: relative; padding-bottom: 28px;
+    }
+    .step:last-child { padding-bottom: 0; }
+    .step-left { display: flex; flex-direction: column; align-items: center; }
+    .step-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-line { width: 2px; background: var(--border); flex: 1; margin-top: 8px; }
+    .step:last-child .step-line { display: none; }
+    .step-body { flex: 1; min-width: 0; padding-top: 4px; }
+    .step-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .step-desc { font-size: 13px; color: var(--text-soft); line-height: 1.7; margin-bottom: 12px; }
+    .code-block {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--text-soft); line-height: 1.7;
+      overflow-x: auto; position: relative;
+    }
+    .code-block .comment { color: var(--text-muted); }
+    .code-block .keyword { color: var(--accent); }
+    .code-block .string { color: var(--green); }
+    .code-block .var { color: var(--yellow); }
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 3px 8px; border-radius: 5px;
+      font-size: 10px; cursor: pointer; font-family: inherit;
+    }
+    .copy-btn:hover { color: var(--text); }
+    .step-tip {
+      background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2);
+      border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-soft);
+      margin-top: 10px; display: flex; gap: 8px; align-items: flex-start;
+    }
+    .step-tip::before { content: '💡'; flex-shrink: 0; }
+
+    /* ── Activity feed ────────────────────────────────────────────────── */
+    .activity-feed { display: flex; flex-direction: column; gap: 2px; }
+    .activity-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 14px; border-radius: 8px;
+      font-size: 12px; transition: background .12s;
+    }
+    .activity-item:hover { background: var(--surface2); }
+    .activity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .activity-body { flex: 1; min-width: 0; }
+    .activity-text { color: var(--text-soft); line-height: 1.5; }
+    .activity-text strong { color: var(--text); }
+    .activity-time { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+    /* ── Overview 2-col ─────────────────────────────────────────────── */
+    .overview-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      :root { --sidebar-w: 0px; }
+      #sidebar { transform: translateX(-220px); transition: transform .25s; width: 220px; --sidebar-w: 220px; }
+      #sidebar.open { transform: translateX(0); }
+      #main-content { margin-left: 0; }
+      .overview-grid { grid-template-columns: 1fr; }
       .drawer { width: 100%; }
     }
+    @media (max-width: 600px) {
+      #main-content { padding: 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ── Pill tabs (for sub-sections) ────────────────────────────────── */
+    .pill-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .pill-tab {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); background: none; color: var(--text-muted);
+      cursor: pointer; transition: background .12s, color .12s, border-color .12s;
+    }
+    .pill-tab:hover { background: var(--surface2); color: var(--text); }
+    .pill-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Scrollbar ───────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    /* ── Tab panels ──────────────────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
   </style>
 </head>
 <body>
 
-<header>
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#388bfd" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-  <h1>MACRV</h1>
-  <span class="subtitle">Multi-Agent Code Review</span>
-  <button class="refresh-btn" onclick="refreshAll()">&#8635; Refresh</button>
+<!-- ── Top Header ─────────────────────────────────────────────────── -->
+<header id="top-header">
+  <div class="logo-mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+  </div>
+  <div class="brand">MACRV <span>Multi-Agent Code Review</span></div>
+  <div class="header-spacer"></div>
+  <div class="header-pill">
+    <div class="pulse-dot" id="health-dot"></div>
+    <span id="health-label">Connecting…</span>
+  </div>
+  <div class="header-actions">
+    <button class="hbtn" onclick="refreshAll()" title="Refresh all data">↻ Refresh</button>
+    <button class="hbtn hbtn-primary" onclick="switchPage('setup')">+ Add Webhook</button>
+  </div>
 </header>
 
-<main>
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('overview')">Overview</div>
-    <div class="tab" onclick="switchTab('reviews')">PR Reviews</div>
-    <div class="tab" onclick="switchTab('findings')">Findings</div>
-    <div class="tab" onclick="switchTab('repos')">Repositories</div>
-  </div>
+<!-- ── App Shell ──────────────────────────────────────────────────── -->
+<div id="app">
 
-  <!-- OVERVIEW TAB -->
-  <div id="tab-overview" class="tab-panel active">
-    <div class="stats-grid" id="stats-grid">
-      <div class="stat-card"><div class="label">Total Reviews</div><div class="value blue" id="stat-total">–</div></div>
-      <div class="stat-card"><div class="label">Pending</div><div class="value yellow" id="stat-pending">–</div></div>
-      <div class="stat-card"><div class="label">In Progress</div><div class="value blue" id="stat-in-progress">–</div></div>
-      <div class="stat-card"><div class="label">Completed</div><div class="value green" id="stat-completed">–</div></div>
-      <div class="stat-card"><div class="label">Approved</div><div class="value green" id="stat-approved">–</div></div>
-      <div class="stat-card"><div class="label">Changes Requested</div><div class="value red" id="stat-changes">–</div></div>
-      <div class="stat-card"><div class="label">Critical Findings</div><div class="value red" id="stat-critical">–</div></div>
-      <div class="stat-card"><div class="label">Repos Connected</div><div class="value blue" id="stat-repos">–</div></div>
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="nav-section-label">Overview</div>
+    <button class="nav-item active" onclick="switchPage('overview')" data-page="overview">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+
+    <div class="nav-section-label" style="margin-top:8px">Reviews</div>
+    <button class="nav-item" onclick="switchPage('reviews')" data-page="reviews">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      PR Reviews
+      <span class="nav-badge" id="nav-pending-badge" hidden>0</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('findings')" data-page="findings">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      Findings
+    </button>
+    <button class="nav-item" onclick="switchPage('repos')" data-page="repos">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Repositories
+    </button>
+
+    <div class="nav-section-label" style="margin-top:8px">Config</div>
+    <button class="nav-item" onclick="switchPage('integrations')" data-page="integrations">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+      Integrations
+      <span class="nav-badge" id="nav-int-badge" hidden>!</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('setup')" data-page="setup">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Setup Guide
+    </button>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-version">MACRV v1.0 · Phase 1–6</div>
     </div>
+  </nav>
 
-    <h2 style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">Connected Repositories</h2>
-    <div id="overview-repos" class="repos-grid"></div>
-  </div>
+  <!-- Main content area -->
+  <main id="main-content">
 
-  <!-- REVIEWS TAB -->
-  <div id="tab-reviews" class="tab-panel">
-    <div class="table-wrap">
-      <div class="table-toolbar">
-        <select id="filter-status" onchange="loadReviews()">
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="failed">Failed</option>
-        </select>
-        <select id="filter-repo" onchange="loadReviews()">
-          <option value="">All Repos</option>
-        </select>
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: OVERVIEW
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-overview" class="page active">
+      <div class="page-header">
+        <div class="page-title">Dashboard Overview</div>
+        <div class="page-desc">Live review pipeline stats · auto-refreshes every 30s</div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>PR</th><th>Repo</th><th>Author</th><th>Status</th><th>Decision</th>
-            <th>Critical</th><th>Created</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="reviews-tbody">
-          <tr><td colspan="8" class="empty"><span class="spinner"></span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
-  <!-- FINDINGS TAB -->
-  <div id="tab-findings" class="tab-panel">
-    <div class="table-wrap">
-      <div class="table-toolbar">
-        <select id="filter-severity" onchange="loadFindings()">
-          <option value="">All Severities</option>
-          <option value="critical">Critical</option>
-          <option value="suggestive">Suggestive</option>
-          <option value="optimisation">Optimisation</option>
-        </select>
-        <select id="filter-findings-repo" onchange="loadFindings()">
-          <option value="">All Repos</option>
-        </select>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-icon blue">📊</div>
+          <div class="stat-label">Total Reviews</div>
+          <div class="stat-value blue" id="stat-total">–</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon yellow">⏳</div>
+          <div class="stat-label">Queued</div>
+          <div class="stat-value yellow" id="stat-pending">–</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon blue">⚡</div>
+          <div class="stat-label">In Progress</div>
+          <div class="stat-value blue" id="stat-in-progress">–</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-label">Completed</div>
+          <div class="stat-value green" id="stat-completed">–</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon green">🟢</div>
+          <div class="stat-label">Approved</div>
+          <div class="stat-value green" id="stat-approved">–</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon red">🔴</div>
+          <div class="stat-label">Blocked</div>
+          <div class="stat-value red" id="stat-changes">–</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon red">🚨</div>
+          <div class="stat-label">Critical Findings</div>
+          <div class="stat-value red" id="stat-critical">–</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon blue">📁</div>
+          <div class="stat-label">Repos Tracked</div>
+          <div class="stat-value blue" id="stat-repos">–</div>
+        </div>
       </div>
-      <table>
-        <thead>
-          <tr><th>Severity</th><th>Title</th><th>File</th><th>PR</th><th>Source</th><th>Date</th></tr>
-        </thead>
-        <tbody id="findings-tbody">
-          <tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>
-        </tbody>
-      </table>
+
+      <div class="overview-grid">
+        <div>
+          <div class="section-title">Connected Repositories</div>
+          <div id="overview-repos" class="repos-grid"></div>
+        </div>
+        <div>
+          <div class="section-title">Recent Activity</div>
+          <div class="card">
+            <div id="activity-feed" class="activity-feed" style="padding:8px 4px;">
+              <div class="empty" style="padding:32px"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- REPOS TAB -->
-  <div id="tab-repos" class="tab-panel">
-    <div id="repos-grid-main" class="repos-grid"></div>
-  </div>
-</main>
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: PR REVIEWS
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-reviews" class="page">
+      <div class="page-header">
+        <div class="page-title">PR Reviews</div>
+        <div class="page-desc">All pull requests submitted for automated code review</div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <select id="filter-status" onchange="loadReviews()">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+          <select id="filter-repo" onchange="loadReviews()">
+            <option value="">All Repos</option>
+          </select>
+          <div class="header-spacer"></div>
+          <button class="btn btn-sm" onclick="loadReviews()">↻ Reload</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Pull Request</th><th>Repository</th><th>Author</th>
+              <th>Status</th><th>Decision</th><th>Critical</th>
+              <th>Created</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reviews-tbody">
+            <tr><td colspan="8" class="empty"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-<!-- Assign Modal -->
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: FINDINGS
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-findings" class="page">
+      <div class="page-header">
+        <div class="page-title">Security Findings</div>
+        <div class="page-desc">All findings classified by the LangGraph pipeline</div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <select id="filter-severity" onchange="loadFindings()">
+            <option value="">All Severities</option>
+            <option value="critical">🔴 Critical</option>
+            <option value="suggestive">🟡 Suggestive</option>
+            <option value="optimisation">🟢 Optimisation</option>
+          </select>
+          <select id="filter-findings-repo" onchange="loadFindings()">
+            <option value="">All Repos</option>
+          </select>
+          <div class="header-spacer"></div>
+          <button class="btn btn-sm" onclick="loadFindings()">↻ Reload</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Severity</th><th>Title</th><th>File / Line</th><th>PR</th><th>Source</th><th>Date</th></tr>
+          </thead>
+          <tbody id="findings-tbody">
+            <tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: REPOSITORIES
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-repos" class="page">
+      <div class="page-header">
+        <div class="page-title">Repositories</div>
+        <div class="page-desc">GitHub repositories connected to the MACRV pipeline</div>
+      </div>
+      <div id="repos-grid-main" class="repos-grid"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: INTEGRATIONS
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-integrations" class="page">
+      <div class="page-header">
+        <div class="page-title">Integrations</div>
+        <div class="page-desc">Configure notification and ticketing channels for your review pipeline</div>
+      </div>
+
+      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--text-soft);display:flex;gap:10px;align-items:flex-start;">
+        <span>ℹ️</span>
+        <div>Integrations are configured via <strong>environment variables</strong> on your server/container. Set them in your <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-family:monospace;">.env</code> file or Render dashboard, then restart the service. Status below reflects the current runtime configuration.</div>
+      </div>
+
+      <div id="integrations-grid" class="integrations-grid">
+        <div class="empty" style="grid-column:1/-1"><span class="spinner"></span></div>
+      </div>
+
+      <div style="margin-top:28px;">
+        <div class="section-title">Test Integrations</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="testIntegration('slack')">Send Test Slack Message</button>
+          <button class="btn" onclick="testIntegration('email')">Send Test Email</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         PAGE: SETUP GUIDE
+    ════════════════════════════════════════════════════════════ -->
+    <div id="page-setup" class="page">
+      <div class="page-header">
+        <div class="page-title">Setup Guide</div>
+        <div class="page-desc">Complete walkthrough: from zero to automated PR reviews in 5 steps</div>
+      </div>
+
+      <div class="pill-tabs">
+        <button class="pill-tab active" onclick="switchSetupTab('quickstart')">Quick Start</button>
+        <button class="pill-tab" onclick="switchSetupTab('webhook')">Webhook Setup</button>
+        <button class="pill-tab" onclick="switchSetupTab('demo')">Demo Flow</button>
+        <button class="pill-tab" onclick="switchSetupTab('config')">Configuration</button>
+      </div>
+
+      <!-- Quick Start -->
+      <div id="setup-quickstart" class="setup-tab">
+        <div class="steps">
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Clone &amp; Configure</div>
+              <div class="step-desc">Clone the repository and set up your environment variables. You'll need an Anthropic API key, a GitHub token, and optionally SendGrid/Slack credentials for notifications.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Clone the repo</span>
+<span class="keyword">git</span> clone https://github.com/VaibhavBansal26/multi-agent-code-review
+<span class="keyword">cd</span> multi-agent-code-review
+
+<span class="comment"># Copy the environment template</span>
+<span class="keyword">cp</span> .env.example .env
+
+<span class="comment"># Edit .env — add your credentials</span>
+<span class="var">ANTHROPIC_API_KEY</span>=sk-ant-...
+<span class="var">GITHUB_TOKEN</span>=ghp_...
+<span class="var">GITHUB_WEBHOOK_SECRET</span>=your-random-secret
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Start the Services</div>
+              <div class="step-desc">Use Docker Compose to start the API, Celery worker, Redis queue, and PostgreSQL database with one command.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Start all services</span>
+<span class="keyword">docker compose up</span> -d
+
+<span class="comment"># Run database migrations</span>
+<span class="keyword">docker compose exec</span> api alembic upgrade head
+
+<span class="comment"># Verify the API is healthy</span>
+<span class="keyword">curl</span> http://localhost:8000/health
+<span class="comment"># → {"status":"ok","version":"1.0"}</span>
+              </div>
+              <div class="step-tip">The dashboard is served at <strong>http://localhost:8000/dashboard</strong> once the API starts.</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Expose the Webhook (Local Dev)</div>
+              <div class="step-desc">GitHub needs a public URL to send webhook events. Use ngrok to create a secure tunnel to your local API.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Install ngrok: https://ngrok.com/download</span>
+<span class="keyword">ngrok http</span> 8000
+
+<span class="comment"># ngrok will print your public URL:</span>
+<span class="comment"># Forwarding  https://abc123.ngrok.io → localhost:8000</span>
+
+<span class="comment"># Your webhook URL will be:</span>
+<span class="string">https://abc123.ngrok.io/webhook/github</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Add the GitHub Webhook</div>
+              <div class="step-desc">In your GitHub repository settings, add a webhook pointing to your MACRV instance. Set the content type to JSON and trigger on pull request events.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Navigate to your GitHub repository</span>
+Settings → Webhooks → Add webhook
+
+<span class="var">Payload URL:</span>    https://&lt;your-domain&gt;/webhook/github
+<span class="var">Content type:</span>  application/json
+<span class="var">Secret:</span>        &lt;same value as GITHUB_WEBHOOK_SECRET in .env&gt;
+
+<span class="var">Events:</span>  ✓ Pull requests
+         ✓ Pull request reviews (optional)
+              </div>
+              <div class="step-tip">After saving, GitHub sends a ping event. Check the webhook delivery log — a green tick means MACRV received it successfully.</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Open a Pull Request</div>
+              <div class="step-desc">Create a pull request on the connected repository. MACRV automatically picks it up, runs the full LangGraph pipeline, and posts findings as inline PR comments.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Create a feature branch and push a PR</span>
+<span class="keyword">git checkout</span> -b feat/example-change
+<span class="keyword">echo</span> <span class="string">"# change"</span> >> README.md
+<span class="keyword">git add</span> . && <span class="keyword">git commit</span> -m <span class="string">"test: trigger MACRV review"</span>
+<span class="keyword">git push</span> -u origin feat/example-change
+
+<span class="comment"># Then open a PR on GitHub</span>
+<span class="comment"># MACRV posts a review within ~30–90 seconds</span>
+              </div>
+              <div class="step-tip">Watch the review appear in real time on this dashboard — the <strong>PR Reviews</strong> page shows live status as the pipeline progresses: Queued → In Progress → Completed.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Webhook Setup -->
+      <div id="setup-webhook" class="setup-tab" hidden>
+        <div class="steps">
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">GitHub Repository Webhook</div>
+              <div class="step-desc">Go to <strong>github.com → Your Repository → Settings → Webhooks → Add webhook</strong>. Fill in the fields below:</div>
+              <div class="code-block">
+<span class="var">Payload URL</span>
+https://&lt;your-macrv-host&gt;/webhook/github
+
+<span class="var">Content type</span>
+application/json
+
+<span class="var">Secret</span>
+&lt;value of GITHUB_WEBHOOK_SECRET env var&gt;
+
+<span class="var">Which events?</span>
+☑ Let me select individual events
+  ✓ Pull requests
+</div>
+              <div class="step-tip">The webhook secret is used to verify that events actually come from GitHub. Generate a strong random secret: <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:monospace;">openssl rand -hex 32</code></div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Verify Delivery</div>
+              <div class="step-desc">After saving the webhook, GitHub immediately sends a <strong>ping</strong> event. Check the Recent Deliveries section — a ✅ green check means MACRV received and validated the signature correctly.</div>
+              <div class="code-block">
+<span class="comment"># Check MACRV logs for the ping</span>
+<span class="keyword">docker compose logs</span> api | <span class="keyword">grep</span> ping
+<span class="comment"># → INFO: Webhook ping received from repo org/name</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="step-title">Custom .macrv.yml (Optional)</div>
+              <div class="step-desc">Drop a <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-family:monospace;">.macrv.yml</code> file in your repo root to customize thresholds, ignored paths, and model overrides.</div>
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># .macrv.yml — customize MACRV behavior per-repo</span>
+severity_thresholds:
+  block_on: [critical]
+  notify_on: [critical, suggestive]
+
+ignore_paths:
+  - <span class="string">"*.md"</span>
+  - <span class="string">"docs/**"</span>
+  - <span class="string">"migrations/**"</span>
+
+models:
+  orchestrator: claude-opus-5-5
+  workers:      claude-sonnet-4-6
+  classifier:   claude-haiku-5-5
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Demo Flow -->
+      <div id="setup-demo" class="setup-tab" hidden>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:20px;">
+          <div style="font-size:17px;font-weight:700;margin-bottom:8px;">🎬 End-to-End Demo Flow</div>
+          <div style="color:var(--text-soft);font-size:13px;margin-bottom:20px;">This demo creates a real PR with a SQL injection vulnerability and shows it flowing through the entire MACRV pipeline.</div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:22px;margin-bottom:6px;">1️⃣</div>
+              <div style="font-size:12px;font-weight:600;">Create PR</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Push code with a SQL injection bug</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:22px;margin-bottom:6px;">2️⃣</div>
+              <div style="font-size:12px;font-weight:600;">Webhook Fires</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">GitHub POSTs to MACRV /webhook/github</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:22px;margin-bottom:6px;">3️⃣</div>
+              <div style="font-size:12px;font-weight:600;">Pipeline Runs</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">SAST → AI Review → Classify → Notify</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:22px;margin-bottom:6px;">4️⃣</div>
+              <div style="font-size:12px;font-weight:600;">Dashboard Updates</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Critical finding → REQUEST_CHANGES posted</div>
+            </div>
+          </div>
+
+          <div class="section-title">Demo Script</div>
+          <div class="code-block" style="margin-bottom:16px;">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment">#!/bin/bash
+# MACRV demo: vulnerable Python file triggers critical finding</span>
+
+<span class="comment"># 1. Create the demo repository structure</span>
+mkdir -p macrv-demo && cd macrv-demo
+<span class="keyword">git init</span> && <span class="keyword">git remote add</span> origin https://github.com/YOUR-ORG/YOUR-REPO.git
+
+<span class="comment"># 2. Write a file with a SQL injection vulnerability</span>
+cat > app.py &lt;&lt;<span class="string">'EOF'</span>
+<span class="string">def get_user(user_input):
+    # ⚠️  This is intentionally vulnerable for the demo
+    query = f"SELECT * FROM users WHERE name = '{user_input}'"
+    return db.execute(query)
+EOF</span>
+
+<span class="comment"># 3. Open the PR</span>
+<span class="keyword">git checkout</span> -b demo/sql-injection
+<span class="keyword">git add</span> . && <span class="keyword">git commit</span> -m <span class="string">"demo: add user search (vulnerable)"</span>
+<span class="keyword">git push</span> -u origin demo/sql-injection
+<span class="comment"># → Then open a PR on GitHub</span>
+
+<span class="comment"># 4. Watch the dashboard: Reviews page shows status change
+#    In ~30–90s, MACRV posts a "REQUEST_CHANGES" review with:
+#      🔴 Critical: SQL Injection in app.py:3</span>
+          </div>
+
+          <div class="step-tip">Once the review appears in GitHub, come back to this dashboard → <strong>PR Reviews</strong> tab to see the finding, then <strong>Findings</strong> tab to see the detailed security report.</div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;">🧪 Run Built-in Eval Suite</div>
+          <div style="color:var(--text-soft);font-size:13px;margin-bottom:16px;">The eval harness runs 6 built-in test cases (SQL injection, XSS, hardcoded secrets, clean code, command injection, style issues) and reports F1 / decision accuracy. No real PRs needed.</div>
+          <button class="btn btn-primary" onclick="runEvals()" id="eval-run-btn">▶ Run Eval Suite</button>
+          <div id="eval-results" style="margin-top:16px;display:none;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;" id="eval-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Config reference -->
+      <div id="setup-config" class="setup-tab" hidden>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Environment Variables Reference</div></div>
+          <table>
+            <thead><tr><th>Variable</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">ANTHROPIC_API_KEY</code></td><td><span class="badge badge-critical">Required</span></td><td>Claude API key for all LLM inference</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">GITHUB_WEBHOOK_SECRET</code></td><td><span class="badge badge-critical">Required</span></td><td>HMAC secret to verify GitHub webhook signatures</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">GITHUB_TOKEN</code></td><td><span class="badge badge-critical">Required</span></td><td>GitHub PAT or App token for posting review comments</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">DATABASE_URL</code></td><td><span class="badge badge-changes">Required</span></td><td>PostgreSQL async DSN (asyncpg driver)</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">CELERY_BROKER_URL</code></td><td><span class="badge badge-changes">Required</span></td><td>Redis URL for Celery task queue</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">SENDGRID_API_KEY</code></td><td><span class="badge badge-pending">Optional</span></td><td>Email alerts to PR author on critical findings</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">EMAIL_FROM</code></td><td><span class="badge badge-pending">Optional</span></td><td>Verified sender email for SendGrid</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">SLACK_WEBHOOK_URL</code></td><td><span class="badge badge-pending">Optional</span></td><td>Incoming webhook URL for Slack review summaries</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">JIRA_URL</code></td><td><span class="badge badge-pending">Optional</span></td><td>Jira base URL (e.g. https://org.atlassian.net)</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">JIRA_EMAIL</code></td><td><span class="badge badge-pending">Optional</span></td><td>Jira account email for basic auth</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">JIRA_TOKEN</code></td><td><span class="badge badge-pending">Optional</span></td><td>Jira API token</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">JIRA_PROJECT_KEY</code></td><td><span class="badge badge-pending">Optional</span></td><td>Jira project key (e.g. ENG)</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">LINEAR_API_KEY</code></td><td><span class="badge badge-pending">Optional</span></td><td>Linear personal API key</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">LINEAR_TEAM_ID</code></td><td><span class="badge badge-pending">Optional</span></td><td>Linear team UUID for issue creation</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">WANDB_API_KEY</code></td><td><span class="badge badge-pending">Optional</span></td><td>W&amp;B API key for Weave eval tracing</td></tr>
+              <tr><td><code style="font-family:monospace;font-size:12px;color:var(--accent)">WEAVE_PROJECT</code></td><td><span class="badge badge-pending">Optional</span></td><td>W&amp;B project name for Weave traces</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /page-setup -->
+
+  </main>
+</div><!-- /app -->
+
+<!-- ── Assign Modal ─────────────────────────────────────────────────── -->
 <div id="assign-modal" class="modal-overlay">
   <div class="modal">
-    <h2>Assign Human Review</h2>
+    <div class="modal-title">Assign Human Review</div>
+    <div class="modal-subtitle">Request a human review on this PR in addition to the automated analysis.</div>
     <div class="form-group">
       <label>GitHub Username</label>
       <input id="assign-username" type="text" placeholder="e.g. octocat" />
+      <div class="form-hint">The user will be added as a reviewer on the pull request.</div>
     </div>
-    <div id="assign-pr-info" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;"></div>
+    <div id="assign-pr-info" style="font-size:12px;color:var(--text-muted);background:var(--surface2);padding:8px 10px;border-radius:6px;font-family:monospace;"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAssign()">Assign</button>
+      <button class="btn btn-primary" onclick="submitAssign()">Assign Reviewer</button>
     </div>
   </div>
 </div>
 
-<!-- Findings Drawer -->
+<!-- ── Findings Drawer ──────────────────────────────────────────────── -->
 <div id="findings-drawer" class="drawer">
   <div class="drawer-header">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <strong id="drawer-title">Findings</strong>
-    <button class="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+    <button class="drawer-close" onclick="closeDrawer()" title="Close">✕</button>
   </div>
   <div id="drawer-content"></div>
 </div>
 
 <div id="toast"></div>
 
+<!-- ══════════════════════════════════════════════════════════════════
+     JavaScript
+══════════════════════════════════════════════════════════════════ -->
 <script>
+  // ── State ─────────────────────────────────────────────────────────
   let currentAssignReviewId = null;
   let repoList = [];
+  const PAGES = ['overview','reviews','findings','repos','integrations','setup'];
 
-  // ---------------------------------------------------------------------------
-  // Tab switching
-  // ---------------------------------------------------------------------------
-  function switchTab(name) {
-    document.querySelectorAll('.tab').forEach((t, i) => {
-      const tabs = ['overview','reviews','findings','repos'];
-      t.classList.toggle('active', tabs[i] === name);
+  // ── Navigation ────────────────────────────────────────────────────
+  function switchPage(name) {
+    PAGES.forEach(p => {
+      document.getElementById('page-' + p).classList.toggle('active', p === name);
+      const btn = document.querySelector(`[data-page="${p}"]`);
+      if (btn) btn.classList.toggle('active', p === name);
     });
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
     if (name === 'reviews') loadReviews();
     if (name === 'findings') loadFindings();
     if (name === 'repos') loadRepos();
+    if (name === 'integrations') loadIntegrations();
   }
 
-  // ---------------------------------------------------------------------------
-  // Data fetching
-  // ---------------------------------------------------------------------------
-  async function api(path) {
-    const r = await fetch('/dashboard' + path);
+  function switchSetupTab(tab) {
+    document.querySelectorAll('.setup-tab').forEach(el => el.hidden = true);
+    document.getElementById('setup-' + tab).hidden = false;
+    document.querySelectorAll('.pill-tab').forEach((el, i) => {
+      el.classList.toggle('active', el.getAttribute('onclick').includes("'" + tab + "'"));
+    });
+  }
+
+  // ── API helpers ────────────────────────────────────────────────────
+  async function api(path, opts) {
+    const r = await fetch('/dashboard' + path, opts);
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
 
+  // ── Health check ───────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch('/health');
+      const ok = r.ok;
+      document.getElementById('health-dot').style.background = ok ? 'var(--green)' : 'var(--red)';
+      document.getElementById('health-label').textContent = ok ? 'API Online' : 'API Error';
+    } catch {
+      document.getElementById('health-dot').style.background = 'var(--red)';
+      document.getElementById('health-label').textContent = 'Offline';
+    }
+  }
+
+  // ── Stats / Overview ───────────────────────────────────────────────
   async function loadStats() {
     try {
       const d = await api('/api/stats');
-      document.getElementById('stat-total').textContent = d.total_reviews;
-      document.getElementById('stat-pending').textContent = d.pending;
-      document.getElementById('stat-in-progress').textContent = d.in_progress;
-      document.getElementById('stat-completed').textContent = d.completed;
-      document.getElementById('stat-approved').textContent = d.approved;
-      document.getElementById('stat-changes').textContent = d.changes_requested;
-      document.getElementById('stat-critical').textContent = d.critical_findings;
-      document.getElementById('stat-repos').textContent = d.connected_repos_count;
+      const fields = {
+        'stat-total': d.total_reviews,
+        'stat-pending': d.pending,
+        'stat-in-progress': d.in_progress,
+        'stat-completed': d.completed,
+        'stat-approved': d.approved,
+        'stat-changes': d.changes_requested,
+        'stat-critical': d.critical_findings,
+        'stat-repos': d.connected_repos_count,
+      };
+      Object.entries(fields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val ?? 0;
+      });
+
+      // Nav badge
+      const pb = document.getElementById('nav-pending-badge');
+      if (d.pending > 0) { pb.textContent = d.pending; pb.hidden = false; }
+      else { pb.hidden = true; }
+
       repoList = d.connected_repos || [];
       renderOverviewRepos(repoList);
       populateRepoFilters(repoList);
-    } catch(e) { console.error(e); }
+      renderActivityFeed(d);
+    } catch(e) {
+      console.error('Stats error:', e);
+    }
   }
 
   function renderOverviewRepos(repos) {
     const el = document.getElementById('overview-repos');
-    if (!repos.length) { el.innerHTML = '<p class="empty"><span class="icon">&#128230;</span><br>No repositories connected yet. Install the MACRV GitHub App and open a PR.</p>'; return; }
+    if (!repos.length) {
+      el.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📭</div><p>No repositories connected yet. Follow the <strong>Setup Guide</strong> to add a webhook.</p></div>`;
+      return;
+    }
     el.innerHTML = repos.map(r => `
       <div class="repo-card">
-        <h3><a href="https://github.com/${r}" target="_blank">${r}</a></h3>
-        <div class="repo-meta"><span>Connected</span></div>
+        <div class="repo-card-header">
+          <div class="repo-card-icon">📁</div>
+          <div><h3><a href="https://github.com/${esc(r)}" target="_blank">${esc(r)}</a></h3></div>
+        </div>
+        <div class="repo-card-meta"><span>✅ Connected to MACRV</span></div>
       </div>
     `).join('');
   }
@@ -310,98 +1182,247 @@
   function populateRepoFilters(repos) {
     ['filter-repo','filter-findings-repo'].forEach(id => {
       const sel = document.getElementById(id);
+      if (!sel) return;
       const val = sel.value;
-      sel.innerHTML = '<option value="">All Repos</option>' + repos.map(r => `<option value="${r}"${r===val?' selected':''}>${r}</option>`).join('');
+      sel.innerHTML = '<option value="">All Repos</option>' +
+        repos.map(r => `<option value="${esc(r)}"${r===val?' selected':''}>${esc(r)}</option>`).join('');
     });
   }
 
+  function renderActivityFeed(stats) {
+    const el = document.getElementById('activity-feed');
+    const items = [];
+    if (stats.total_reviews > 0) items.push({ color: 'var(--accent)', text: `<strong>${stats.total_reviews}</strong> total PR reviews processed`, time: 'all time' });
+    if (stats.critical_findings > 0) items.push({ color: 'var(--red)', text: `<strong>${stats.critical_findings}</strong> critical findings detected`, time: 'all time' });
+    if (stats.approved > 0) items.push({ color: 'var(--green)', text: `<strong>${stats.approved}</strong> PRs approved automatically`, time: 'all time' });
+    if (stats.changes_requested > 0) items.push({ color: 'var(--yellow)', text: `<strong>${stats.changes_requested}</strong> PRs blocked pending fixes`, time: 'all time' });
+    if (stats.pending > 0) items.push({ color: 'var(--purple)', text: `<strong>${stats.pending}</strong> reviews currently queued`, time: 'right now' });
+    if (!items.length) items.push({ color: 'var(--text-muted)', text: 'No activity yet — connect a repo and open a PR', time: '' });
+    el.innerHTML = items.map(i => `
+      <div class="activity-item">
+        <div class="activity-dot" style="background:${i.color}"></div>
+        <div class="activity-body">
+          <div class="activity-text">${i.text}</div>
+          ${i.time ? `<div class="activity-time">${i.time}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Reviews ────────────────────────────────────────────────────────
   async function loadReviews() {
     const status = document.getElementById('filter-status').value;
     const repo = document.getElementById('filter-repo').value;
     const tbody = document.getElementById('reviews-tbody');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px"><span class="spinner"></span></td></tr>';
     try {
       const params = new URLSearchParams();
       if (status) params.set('status', status);
       if (repo) params.set('repo', repo);
       const d = await api('/api/reviews?' + params);
       if (!d.reviews.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">No reviews found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty"><div class="empty-icon">🔍</div><p>No reviews found. Open a pull request on a connected repo.</p></td></tr>';
         return;
       }
       tbody.innerHTML = d.reviews.map(r => `
         <tr>
-          <td><a href="https://github.com/${r.repo}/pull/${r.pr_number}" target="_blank">#${r.pr_number}</a><br><span style="color:var(--text-muted);font-size:11px">${esc(r.pr_title||'').slice(0,40)}</span></td>
-          <td style="color:var(--text-muted);font-size:12px">${esc(r.repo)}</td>
-          <td>${esc(r.author)}</td>
-          <td><span class="badge badge-${r.status}">${r.status}</span></td>
-          <td>${r.decision ? `<span class="badge badge-${r.decision === 'changes_requested' ? 'changes' : r.decision}">${r.decision}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
-          <td>${r.critical > 0 ? `<span class="badge badge-critical">${r.critical}</span>` : '<span style="color:var(--text-muted)">0</span>'}</td>
+          <td>
+            <a href="https://github.com/${esc(r.repo)}/pull/${r.pr_number}" target="_blank" style="font-weight:600">#${r.pr_number}</a>
+            <div style="color:var(--text-muted);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((r.pr_title||'').slice(0,60))}</div>
+          </td>
+          <td style="color:var(--text-soft);font-size:12px;font-family:'JetBrains Mono',monospace">${esc(r.repo)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;">${(r.author||'?')[0].toUpperCase()}</div>
+              ${esc(r.author)}
+            </div>
+          </td>
+          <td><span class="badge badge-${r.status}">${r.status.replace('_',' ')}</span></td>
+          <td>${r.decision ? `<span class="badge badge-${r.decision==='changes_requested'?'changes':r.decision}">${r.decision.replace('_',' ')}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+          <td>${r.critical > 0 ? `<span class="badge badge-critical">${r.critical}</span>` : '<span style="color:var(--text-muted);font-size:12px">0</span>'}</td>
           <td style="font-size:12px;color:var(--text-muted)">${relTime(r.created_at)}</td>
           <td>
-            <button class="btn btn-primary" onclick="showFindings(${r.id},'${esc(r.repo)}#${r.pr_number}')">Findings</button>
-            <button class="btn" onclick="rescan(${r.id})">Re-scan</button>
-            <button class="btn" onclick="openAssign(${r.id},'${esc(r.repo)}','${r.pr_number}')">Assign</button>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-primary" onclick="showFindings(${r.id},'${esc(r.repo)}#${r.pr_number}')">Findings</button>
+              <button class="btn btn-sm" onclick="rescan(${r.id})" title="Re-queue this PR for review">↻</button>
+              <button class="btn btn-sm" onclick="openAssign(${r.id},'${esc(r.repo)}','${r.pr_number}')">Assign</button>
+            </div>
           </td>
         </tr>
       `).join('');
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Error: ${e.message}</td></tr>`; }
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty"><div class="empty-icon">⚠️</div><p>Error loading reviews: ${esc(e.message)}</p></td></tr>`;
+    }
   }
 
+  // ── Findings ────────────────────────────────────────────────────────
   async function loadFindings() {
     const severity = document.getElementById('filter-severity').value;
     const repo = document.getElementById('filter-findings-repo').value;
     const tbody = document.getElementById('findings-tbody');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px"><span class="spinner"></span></td></tr>';
     try {
       const params = new URLSearchParams();
       if (severity) params.set('severity', severity);
       if (repo) params.set('repo', repo);
       const d = await api('/api/findings?' + params);
-      if (!d.findings.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>'; return; }
+      if (!d.findings.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty"><div class="empty-icon">✅</div><p>No findings. Your code is clean!</p></td></tr>';
+        return;
+      }
       tbody.innerHTML = d.findings.map(f => `
         <tr>
           <td><span class="badge badge-${f.severity}">${f.severity}</span></td>
-          <td>${esc(f.title)}</td>
-          <td style="font-size:12px;color:var(--text-muted)">${esc(f.file_path)}${f.line_start ? ':'+f.line_start : ''}</td>
-          <td><a href="https://github.com/${f.repo}/pull/${f.pr_number}" target="_blank">#${f.pr_number}</a></td>
+          <td style="font-weight:500">${esc(f.title)}</td>
+          <td style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${esc(f.file_path)}${f.line_start ? ':' + f.line_start : ''}</td>
+          <td><a href="https://github.com/${esc(f.repo)}/pull/${f.pr_number}" target="_blank" style="font-size:12px">#${f.pr_number}</a></td>
           <td style="font-size:12px;color:var(--text-muted)">${esc(f.source)}</td>
           <td style="font-size:12px;color:var(--text-muted)">${relTime(f.created_at)}</td>
         </tr>
       `).join('');
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`; }
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${esc(e.message)}</td></tr>`;
+    }
   }
 
+  // ── Repos ───────────────────────────────────────────────────────────
   async function loadRepos() {
     const el = document.getElementById('repos-grid-main');
-    el.innerHTML = '<p style="color:var(--text-muted)"><span class="spinner"></span></p>';
+    el.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
     try {
       const d = await api('/api/repos');
-      if (!d.repos.length) { el.innerHTML = '<p class="empty"><span class="icon">&#128230;</span><br>No repositories yet.</p>'; return; }
-      el.innerHTML = d.repos.map(r => `
-        <div class="repo-card">
-          <h3><a href="https://github.com/${r.repo}" target="_blank">${r.repo}</a></h3>
-          <div class="repo-meta">
-            <span>Total <b>${r.total}</b></span>
-            <span>Pending <b>${r.pending}</b></span>
-            <span>Approved <b>${r.approved}</b></span>
-            <span>Changes <b>${r.changes_requested}</b></span>
+      if (!d.repos.length) {
+        el.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📁</div><p>No repositories yet. Add a webhook to start reviewing PRs.</p></div>';
+        return;
+      }
+      el.innerHTML = d.repos.map(r => {
+        const total = r.total || 1;
+        const pct = Math.round(((r.approved || 0) / total) * 100);
+        return `
+          <div class="repo-card">
+            <div class="repo-card-header">
+              <div class="repo-card-icon">📁</div>
+              <div><h3><a href="https://github.com/${esc(r.repo)}" target="_blank">${esc(r.repo)}</a></h3></div>
+            </div>
+            <div class="repo-card-meta">
+              <span>Total <b>${r.total}</b></span>
+              <span>✅ <b>${r.approved}</b></span>
+              <span>🔴 <b>${r.changes_requested}</b></span>
+              <span>⏳ <b>${r.pending}</b></span>
+            </div>
+            <div class="repo-card-bar"><div class="repo-card-bar-fill" style="width:${pct}%"></div></div>
           </div>
-        </div>
-      `).join('');
-    } catch(e) { el.innerHTML = `<p class="empty">Error: ${e.message}</p>`; }
+        `;
+      }).join('');
+    } catch(e) {
+      el.innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
+    }
   }
 
-  // ---------------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------------
+  // ── Integrations ────────────────────────────────────────────────────
+  const INT_META = {
+    email:   { icon: '📧', color: '#2563eb', bg: 'rgba(37,99,235,.15)' },
+    slack:   { icon: '💬', color: '#4ade80', bg: 'rgba(74,222,128,.15)' },
+    jira:    { icon: '🎯', color: '#2563eb', bg: 'rgba(37,99,235,.15)' },
+    linear:  { icon: '🔷', color: '#a78bfa', bg: 'rgba(167,139,250,.15)' },
+    weave:   { icon: '🔬', color: '#f59e0b', bg: 'rgba(245,158,11,.15)' },
+  };
+
+  async function loadIntegrations() {
+    const el = document.getElementById('integrations-grid');
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1"><span class="spinner"></span></div>';
+    try {
+      const d = await api('/api/integrations');
+      const unconfigured = d.integrations.filter(i => !i.configured).length;
+      const badge = document.getElementById('nav-int-badge');
+      if (unconfigured > 0) { badge.textContent = unconfigured; badge.hidden = false; }
+      else { badge.hidden = true; }
+
+      el.innerHTML = d.integrations.map(int => {
+        const m = INT_META[int.id] || { icon: '🔧', color: 'var(--accent)', bg: 'var(--accent-glow)' };
+        return `
+          <div class="int-card">
+            <div class="int-card-header">
+              <div class="int-icon" style="background:${m.bg};">${m.icon}</div>
+              <div class="int-info">
+                <div class="int-name">${esc(int.name)}</div>
+                <div class="int-desc">${esc(int.description)}</div>
+              </div>
+              <div class="int-status ${int.configured ? 'configured' : 'not-configured'}">
+                ${int.configured ? '✓ Active' : 'Not set'}
+              </div>
+            </div>
+            <div class="int-body">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Environment Variables</div>
+              <div class="env-vars">
+                ${int.env_vars.map(v => `<span class="env-var ${int.configured?'set':''}">${esc(v)}</span>`).join('')}
+              </div>
+              ${!int.configured ? `
+                <div style="font-size:12px;color:var(--text-muted);background:var(--surface2);border-radius:6px;padding:8px 10px;">
+                  Set these environment variables and restart the server to enable this integration.
+                </div>
+              ` : `
+                <div style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px;">
+                  <span>✓</span> Integration is active and will fire on matching events.
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch(e) {
+      el.innerHTML = `<div class="empty" style="grid-column:1/-1">Could not load integration status: ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function testIntegration(channel) {
+    try {
+      toast(`Sending test ${channel} message…`);
+      const r = await fetch('/dashboard/api/integrations/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ channel }),
+      });
+      const j = await r.json();
+      if (j.ok) toast(`✓ Test ${channel} message sent`, false);
+      else toast(`${channel} not configured: ${j.error || 'unknown'}`, true);
+    } catch(e) { toast('Error: ' + e.message, true); }
+  }
+
+  // ── Evals ────────────────────────────────────────────────────────────
+  async function runEvals() {
+    const btn = document.getElementById('eval-run-btn');
+    btn.disabled = true; btn.textContent = '⏳ Running…';
+    const grid = document.getElementById('eval-grid');
+    const results = document.getElementById('eval-results');
+    results.style.display = 'none';
+    try {
+      const d = await api('/api/evals/run', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+      grid.innerHTML = [
+        { label: 'Total Cases', value: d.total_cases, color: 'blue' },
+        { label: 'Decision Accuracy', value: (d.decision_accuracy * 100).toFixed(0) + '%', color: d.decision_accuracy >= .8 ? 'green' : 'red' },
+        { label: 'Avg F1 Score', value: d.avg_f1 ? d.avg_f1.toFixed(2) : 'N/A', color: 'blue' },
+        { label: 'Avg Latency', value: d.avg_latency_ms ? d.avg_latency_ms.toFixed(0) + 'ms' : 'N/A', color: 'yellow' },
+      ].map(s => `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${s.label}</div>
+          <div style="font-size:24px;font-weight:700;color:var(--${s.color})">${s.value}</div>
+        </div>
+      `).join('');
+      results.style.display = 'block';
+      toast('✓ Eval suite complete');
+    } catch(e) { toast('Eval error: ' + e.message, true); }
+    finally { btn.disabled = false; btn.textContent = '▶ Run Eval Suite'; }
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────
   async function rescan(reviewId) {
     try {
       const d = await fetch(`/dashboard/api/reviews/${reviewId}/rescan`, { method: 'POST' });
       if (!d.ok) throw new Error(await d.text());
       const j = await d.json();
-      toast(`Re-scan queued (task: ${j.task_id.slice(0,8)}…)`);
-      setTimeout(loadReviews, 500);
+      toast(`↻ Re-scan queued (${j.task_id.slice(0,8)}…)`);
+      setTimeout(loadReviews, 800);
     } catch(e) { toast('Error: ' + e.message, true); }
   }
 
@@ -424,7 +1445,7 @@
       const r = await fetch(`/dashboard/api/reviews/${currentAssignReviewId}/assign`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({assignee: username}),
+        body: JSON.stringify({ assignee: username }),
       });
       if (!r.ok) throw new Error(await r.text());
       const j = await r.json();
@@ -435,38 +1456,54 @@
 
   async function showFindings(reviewId, label) {
     document.getElementById('drawer-title').textContent = `Findings — ${label}`;
-    document.getElementById('drawer-content').innerHTML = '<span class="spinner"></span>';
+    document.getElementById('drawer-content').innerHTML = '<div style="padding:20px;text-align:center"><span class="spinner"></span></div>';
     document.getElementById('findings-drawer').classList.add('open');
     try {
       const d = await api(`/api/reviews/${reviewId}`);
       const findings = d.findings || [];
       if (!findings.length) {
-        document.getElementById('drawer-content').innerHTML = '<p class="empty">No findings for this PR.</p>';
+        document.getElementById('drawer-content').innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>No findings for this PR — clean code!</p></div>';
         return;
       }
       document.getElementById('drawer-content').innerHTML = findings.map(f => `
         <div class="finding-item">
-          <div class="finding-title"><span class="badge badge-${f.severity}">${f.severity}</span> ${esc(f.title)}</div>
-          <div class="finding-meta">${esc(f.file_path)}${f.line_start ? ' :'+f.line_start : ''} · ${esc(f.source)}</div>
+          <div class="finding-title">
+            <span class="badge badge-${f.severity}">${f.severity}</span>
+            ${esc(f.title)}
+          </div>
+          <div class="finding-meta">${esc(f.file_path)}${f.line_start ? ' :' + f.line_start : ''} · via ${esc(f.source)}</div>
           <div class="finding-body">${esc(f.body)}</div>
         </div>
       `).join('');
-    } catch(e) { document.getElementById('drawer-content').innerHTML = `<p class="empty">Error: ${e.message}</p>`; }
+    } catch(e) {
+      document.getElementById('drawer-content').innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
+    }
   }
 
   function closeDrawer() { document.getElementById('findings-drawer').classList.remove('open'); }
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  // ── Code copy ────────────────────────────────────────────────────────
+  function copyCode(btn) {
+    const block = btn.closest('.code-block');
+    const text = block.innerText.replace(/^Copy\n/, '').trim();
+    navigator.clipboard.writeText(text).then(
+      () => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); },
+      () => { btn.textContent = 'Error'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+    );
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   function relTime(iso) {
-    const d = new Date(iso), now = new Date(), diff = (now - d) / 1000;
+    if (!iso) return '—';
+    const diff = (Date.now() - new Date(iso)) / 1000;
     if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-    return Math.floor(diff/86400) + 'd ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
   }
 
   let _toastTimer;
@@ -476,16 +1513,28 @@
     el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
     el.classList.add('show');
     clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
   }
 
-  function refreshAll() { loadStats(); if (document.querySelector('.tab-panel.active').id === 'tab-reviews') loadReviews(); }
+  function refreshAll() {
+    loadStats();
+    checkHealth();
+    const active = document.querySelector('.page.active');
+    if (active) {
+      const id = active.id.replace('page-', '');
+      if (id === 'reviews') loadReviews();
+      if (id === 'findings') loadFindings();
+      if (id === 'repos') loadRepos();
+      if (id === 'integrations') loadIntegrations();
+    }
+    toast('↻ Refreshed');
+  }
 
-  // ---------------------------------------------------------------------------
-  // Init
-  // ---------------------------------------------------------------------------
+  // ── Init ─────────────────────────────────────────────────────────────
+  checkHealth();
   loadStats();
-  setInterval(loadStats, 30000);  // auto-refresh stats every 30s
+  setInterval(loadStats, 30000);
+  setInterval(checkHealth, 60000);
 </script>
 </body>
 </html>
