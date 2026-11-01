@@ -201,3 +201,158 @@ class TestTicketProvider:
             result = p.create_ticket(req)
         assert result.ticket_id == "ENG-1"
         assert result.provider == "jira"
+
+    @respx.mock
+    def test_linear_create_ticket(self):
+        from app.integrations.ticket_provider import LinearProvider, TicketRequest
+        respx.post("https://api.linear.app/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "issueCreate": {
+                        "success": True,
+                        "issue": {"id": "abc123", "identifier": "ENG-42", "url": "https://linear.app/team/ENG-42"},
+                    }
+                }
+            })
+        )
+        with patch("app.integrations.ticket_provider.get_settings") as mock_s:
+            mock_s.return_value.linear_api_key = "lin_api_key_test"
+            mock_s.return_value.linear_team_id = "team-xyz"
+            p = LinearProvider()
+            req = TicketRequest(
+                title="Hardcoded secret found",
+                description="AWS key exposed in config.py",
+                severity="critical",
+                repo="owner/repo",
+                pr_number=5,
+                file_path="config.py",
+            )
+            result = p.create_ticket(req)
+        assert result.ticket_id == "ENG-42"
+        assert result.provider == "linear"
+        assert "linear.app" in result.url
+
+    def test_get_ticket_provider_returns_jira_when_configured(self):
+        from app.integrations.ticket_provider import JiraProvider, get_ticket_provider
+        with patch("app.integrations.ticket_provider.get_settings") as mock_s:
+            mock_s.return_value.jira_url = "https://co.atlassian.net"
+            mock_s.return_value.jira_email = "u@co.com"
+            mock_s.return_value.jira_token = "tok"
+            mock_s.return_value.jira_project_key = "ENG"
+            mock_s.return_value.linear_api_key = ""
+            mock_s.return_value.linear_team_id = ""
+            provider = get_ticket_provider()
+        assert isinstance(provider, JiraProvider)
+
+
+# ─── Notification Dispatcher ─────────────────────────────────────────────────
+
+class TestNotificationDispatcher:
+    def test_no_channels_configured(self):
+        from app.integrations.notification_dispatcher import NotificationDispatcher
+        from app.agents.file_reviewer import FileFinding
+        with (
+            patch("app.integrations.notification_dispatcher.send_critical_finding_email", return_value=False),
+            patch("app.integrations.notification_dispatcher.send_review_notification", return_value=False),
+            patch("app.integrations.notification_dispatcher.get_ticket_provider", return_value=None),
+        ):
+            d = NotificationDispatcher()
+            result = d.dispatch(
+                repo="owner/repo",
+                pr_number=1,
+                pr_title="Test PR",
+                author_login="alice",
+                author_email=None,
+                decision="COMMENT",
+                findings=[],
+            )
+        assert result.email_sent is False
+        assert result.slack_sent is False
+        assert result.tickets_created == []
+        assert result.any_sent is False
+
+    def test_email_only_when_author_email_and_critical(self):
+        from app.integrations.notification_dispatcher import NotificationDispatcher
+        from app.agents.file_reviewer import FileFinding
+        critical_finding = FileFinding(
+            title="SQL injection", body="details", file_path="app.py", severity="critical", source="test"
+        )
+        with (
+            patch("app.integrations.notification_dispatcher.send_critical_finding_email", return_value=True) as mock_email,
+            patch("app.integrations.notification_dispatcher.send_review_notification", return_value=False),
+            patch("app.integrations.notification_dispatcher.get_ticket_provider", return_value=None),
+        ):
+            d = NotificationDispatcher()
+            result = d.dispatch(
+                repo="owner/repo",
+                pr_number=1,
+                pr_title="Risky PR",
+                author_login="bob",
+                author_email="bob@example.com",
+                decision="REQUEST_CHANGES",
+                findings=[critical_finding],
+            )
+        mock_email.assert_called_once()
+        assert result.email_sent is True
+
+    def test_email_skipped_without_author_email(self):
+        from app.integrations.notification_dispatcher import NotificationDispatcher
+        from app.agents.file_reviewer import FileFinding
+        critical_finding = FileFinding(
+            title="SQL injection", body="details", file_path="app.py", severity="critical", source="test"
+        )
+        with (
+            patch("app.integrations.notification_dispatcher.send_critical_finding_email", return_value=True) as mock_email,
+            patch("app.integrations.notification_dispatcher.send_review_notification", return_value=True),
+            patch("app.integrations.notification_dispatcher.get_ticket_provider", return_value=None),
+        ):
+            d = NotificationDispatcher()
+            result = d.dispatch(
+                repo="r", pr_number=1, pr_title="t",
+                author_login="bob", author_email=None,
+                decision="REQUEST_CHANGES",
+                findings=[critical_finding],
+            )
+        mock_email.assert_not_called()
+        assert result.email_sent is False
+
+    def test_tickets_created_for_critical(self):
+        from app.integrations.notification_dispatcher import NotificationDispatcher
+        from app.agents.file_reviewer import FileFinding
+        from app.integrations.ticket_provider import TicketResult
+        critical_finding = FileFinding(
+            title="Hardcoded secret", body="AWS key found", file_path="config.py",
+            severity="critical", source="secret_scan",
+        )
+        mock_provider = MagicMock()
+        mock_provider.create_ticket.return_value = TicketResult(
+            provider="jira", ticket_id="ENG-99", url="https://jira.example.com/ENG-99"
+        )
+        with (
+            patch("app.integrations.notification_dispatcher.send_critical_finding_email", return_value=False),
+            patch("app.integrations.notification_dispatcher.send_review_notification", return_value=True),
+            patch("app.integrations.notification_dispatcher.get_ticket_provider", return_value=mock_provider),
+        ):
+            d = NotificationDispatcher()
+            result = d.dispatch(
+                repo="owner/repo", pr_number=3, pr_title="Add config",
+                author_login="carol", author_email=None,
+                decision="REQUEST_CHANGES",
+                findings=[critical_finding],
+            )
+        assert len(result.tickets_created) == 1
+        assert result.tickets_created[0].ticket_id == "ENG-99"
+        assert "tickets(ENG-99)" in result.summary()
+
+    def test_summary_all_channels(self):
+        from app.integrations.notification_dispatcher import NotificationResult
+        from app.integrations.ticket_provider import TicketResult
+        r = NotificationResult(
+            email_sent=True,
+            slack_sent=True,
+            tickets_created=[TicketResult(provider="linear", ticket_id="LIN-1", url="http://x")],
+        )
+        assert r.any_sent is True
+        assert "email" in r.summary()
+        assert "slack" in r.summary()
+        assert "tickets(LIN-1)" in r.summary()

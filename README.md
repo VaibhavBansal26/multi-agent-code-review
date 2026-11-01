@@ -35,7 +35,7 @@ GitHub PR → FastAPI Webhook → Redis/Celery → LangGraph Pipeline
 - [x] **Phase 2** — Agents: orchestrator, file workers, classifier
 - [x] **Phase 3** — GitHub integration: inline comments, approve/block
 - [x] **Phase 4** — Security scanner: Semgrep, Bandit, secret detection, dep CVE audit (pip-audit/npm-audit)
-- [ ] **Phase 5** — Notifications: email, Slack, Jira/Linear
+- [x] **Phase 5** — Notifications: email (SendGrid), Slack webhook, Jira/Linear ticket per critical finding
 - [ ] **Phase 6** — Reports + eval harness (Weave)
 
 ## Quick Start
@@ -79,8 +79,10 @@ See `.env.example` for all available settings.
 | `GITHUB_TOKEN` | Required — GitHub PAT or App token |
 | `DATABASE_URL` | PostgreSQL async connection string |
 | `CELERY_BROKER_URL` | Redis broker URL |
-| `SENDGRID_API_KEY` | Optional — email notifications |
-| `JIRA_URL` / `LINEAR_API_KEY` | Optional — ticket provider |
+| `SENDGRID_API_KEY` | Optional — email critical-finding alerts (Phase 5) |
+| `SLACK_WEBHOOK_URL` | Optional — Slack review summary (Phase 5) |
+| `JIRA_URL` + `JIRA_EMAIL` + `JIRA_TOKEN` | Optional — Jira ticket per critical finding (Phase 5) |
+| `LINEAR_API_KEY` + `LINEAR_TEAM_ID` | Optional — Linear ticket per critical finding (Phase 5) |
 
 ## Integrating with Your Codebase
 

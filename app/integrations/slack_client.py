@@ -27,7 +27,7 @@ def send_review_notification(
         log.info("slack_skipped_no_webhook")
         return False
 
-    critical + suggestive + optimisation
+    total = critical + suggestive + optimisation
     color = "#ff5252" if critical else "#4caf50"
     decision_icon = "🚫" if decision == "REQUEST_CHANGES" else "✅"
 
@@ -42,7 +42,7 @@ def send_review_notification(
                 {"type": "mrkdwn", "text": f"*PR:* <{pr_url}|#{pr_number}: {pr_title}>"},
                 {"type": "mrkdwn", "text": f"*Author:* @{author}"},
                 {"type": "mrkdwn", "text": f"*Decision:* `{decision}`"},
-                {"type": "mrkdwn", "text": f"*Findings:* 🔴 {critical}  🟡 {suggestive}  🟢 {optimisation}"},
+                {"type": "mrkdwn", "text": f"*Findings ({total}):* 🔴 {critical}  🟡 {suggestive}  🟢 {optimisation}"},
             ],
         },
     ]

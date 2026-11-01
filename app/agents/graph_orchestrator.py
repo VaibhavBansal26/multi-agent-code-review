@@ -16,10 +16,8 @@ from app.agents.context_builder import (
 )
 from app.agents.file_reviewer import FileFinding, FileReviewAgent, FileReviewResult
 from app.agents.security_scanner import SecurityScannerAgent
-from app.integrations.email_client import send_critical_finding_email
 from app.integrations.github_client import GitHubClient
-from app.integrations.slack_client import send_review_notification
-from app.integrations.ticket_provider import TicketRequest, get_ticket_provider
+from app.integrations.notification_dispatcher import NotificationDispatcher
 from app.reports.generator import generate_report
 
 log = structlog.get_logger(__name__)
@@ -56,6 +54,7 @@ class ReviewState(TypedDict):
     decision: str
     report_md: str
     report_json: str
+    notifications: dict   # channels fired: {email, slack, tickets}
     error: str | None
     status: str
 
@@ -333,64 +332,28 @@ def post_review(state: ReviewState) -> dict:
 
 
 def notify(state: ReviewState) -> dict:
-    """Send email, Slack, and ticket notifications."""
+    """Phase 5: dispatch email, Slack, and ticket notifications."""
     if state.get("error"):
-        return {}
+        return {"notifications": {}}
 
     classified = state.get("classified_findings", [])
-    critical = [f for f in classified if f.severity == "critical"]
-    suggestive = [f for f in classified if f.severity == "suggestive"]
-    optimisation = [f for f in classified if f.severity == "optimisation"]
-    pr_url = f"https://github.com/{state['repo']}/pull/{state['pr_number']}"
-
-    if critical and state.get("author_email"):
-        summary = "\n".join(f"• [{f.file_path}] {f.title}" for f in critical[:10])
-        send_critical_finding_email(
-            to_email=state["author_email"],
-            to_name=state["author_login"],
-            repo=state["repo"],
-            pr_number=state["pr_number"],
-            pr_title=state["pr_title"],
-            pr_url=pr_url,
-            critical_count=len(critical),
-            findings_summary=summary,
-        )
-
-    send_review_notification(
+    result = NotificationDispatcher().dispatch(
         repo=state["repo"],
         pr_number=state["pr_number"],
         pr_title=state["pr_title"],
-        pr_url=pr_url,
-        author=state["author_login"],
+        author_login=state["author_login"],
+        author_email=state.get("author_email"),
         decision=state.get("decision", "COMMENT"),
-        critical=len(critical),
-        suggestive=len(suggestive),
-        optimisation=len(optimisation),
+        findings=classified,
     )
-
-    if critical:
-        try:
-            provider = get_ticket_provider()
-            if provider:
-                findings_text = "\n".join(
-                    f"- [{f.severity.upper()}] {f.file_path}: {f.title}" for f in critical
-                )
-                provider.create_ticket(TicketRequest(
-                    title=f"[MACRV] Critical findings in PR #{state['pr_number']}: {state['pr_title']}",
-                    description=(
-                        f"PR: {pr_url}\nRepo: {state['repo']}\nAuthor: @{state['author_login']}\n\n"
-                        f"Critical Findings:\n{findings_text}"
-                    ),
-                    severity="critical",
-                    repo=state["repo"],
-                    pr_number=state["pr_number"],
-                    file_path="multiple",
-                    labels=["code-review", "critical", "automated"],
-                ))
-        except Exception as exc:
-            log.error("graph_ticket_failed", error=str(exc))
-
-    return {}
+    return {
+        "notifications": {
+            "email_sent": result.email_sent,
+            "slack_sent": result.slack_sent,
+            "tickets": [{"provider": t.provider, "id": t.ticket_id, "url": t.url} for t in result.tickets_created],
+            "summary": result.summary(),
+        }
+    }
 
 
 # ── Conditional edge ───────────────────────────────────────────────────────────
@@ -526,6 +489,7 @@ class GraphOrchestratorAgent:
             "decision": "COMMENT",
             "report_md": "",
             "report_json": "",
+            "notifications": {},
             "error": None,
             "status": "pending",
         }
@@ -563,6 +527,7 @@ class GraphOrchestratorAgent:
             "status": final_state.get("status", "completed"),
             "report_md": final_state.get("report_md", ""),
             "report_json": final_state.get("report_json", ""),
+            "notifications": final_state.get("notifications", {}),
             "findings": classified,
             "files_reviewed": len(final_state.get("reviewable_files", [])),
         }
